@@ -44,13 +44,8 @@ jobs:
           dependencies-cache-enabled: true
           configuration-cache-enabled: true
 
-      - name: Rename Artifact
-        run: |
-          cd app/build/outputs/apk/release
-          mv app-release-unsigned-signed.apk Shosetsu.apk
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
           name: Shosetsu
-          path: app/build/outputs/apk/release/Shosetsu.apk
+          path: app
