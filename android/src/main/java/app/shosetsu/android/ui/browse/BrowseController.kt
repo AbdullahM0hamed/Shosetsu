@@ -91,8 +91,8 @@ class BrowseController : FastAdapterRefreshableRecyclerController<ExtensionUI>()
 			}
 
 			if (!installed || update) {
-				it.binding.button.isVisible = false
-				it.binding.progress.isVisible = true
+				item.binding.button.isVisible = false
+				item.binding.progress.isVisible = true
 				viewModel.installExtension(item)
 			}
 		}
