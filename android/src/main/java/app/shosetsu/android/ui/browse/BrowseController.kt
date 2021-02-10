@@ -23,6 +23,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.widget.SearchView
 import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
 import app.shosetsu.android.common.consts.BundleKeys.BUNDLE_EXTENSION
 import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.ui.catalogue.CatalogController
@@ -89,7 +90,11 @@ class BrowseController : FastAdapterRefreshableRecyclerController<ExtensionUI>()
 				if (item.updateState() == ExtensionUI.State.UPDATE) update = true
 			}
 
-			if (!installed || update) viewModel.installExtension(item)
+			if (!installed || update) {
+				it.binding.button.isVisible = false
+				it.binding.progress.isVisible = true
+				viewModel.installExtension(item)
+			}
 		}
 
 		hookClickEvent(
