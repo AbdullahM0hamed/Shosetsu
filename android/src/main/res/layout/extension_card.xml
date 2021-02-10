@@ -64,6 +64,12 @@
                 android:scaleType="centerCrop"
                 android:src="@drawable/settings"
                 android:text="@string/download" />
+
+            <ProgressBar
+                android:id="@+id/progress"
+                android:layout_width="32dp"
+                android:layout_height="32dp" 
+                android:visibility="gone" />
         </LinearLayout>
 
 
