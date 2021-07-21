@@ -1,21 +1,23 @@
 package app.shosetsu.android.ui.novel
 
 import android.os.Bundle
-import android.util.Log
+import android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+import android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
 import android.view.*
+import android.widget.NumberPicker
+import androidx.appcompat.app.AlertDialog
 import androidx.core.os.bundleOf
-import androidx.recyclerview.widget.RecyclerView
+import androidx.core.view.isVisible
+import app.shosetsu.android.activity.MainActivity
 import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.ui.migration.MigrationController
 import app.shosetsu.android.ui.migration.MigrationController.Companion.TARGETS_BUNDLE_KEY
 import app.shosetsu.android.view.controller.FastAdapterRecyclerController
-import app.shosetsu.android.view.controller.base.BottomMenuController
 import app.shosetsu.android.view.controller.base.FABController
 import app.shosetsu.android.view.controller.base.syncFABWithRecyclerView
 import app.shosetsu.android.view.uimodels.model.ChapterUI
 import app.shosetsu.android.view.uimodels.model.NovelUI
-import app.shosetsu.android.view.widget.SlidingUpBottomMenu
-import app.shosetsu.android.viewmodel.abstracted.INovelViewModel
+import app.shosetsu.android.viewmodel.abstracted.ANovelViewModel
 import app.shosetsu.common.consts.ErrorKeys
 import app.shosetsu.common.dto.*
 import app.shosetsu.common.enums.ReadingStatus
@@ -23,15 +25,14 @@ import com.github.doomsdayrs.apps.shosetsu.R
 import com.github.doomsdayrs.apps.shosetsu.R.id
 import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerNovelInfoBinding
 import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerNovelInfoBinding.inflate
+import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerNovelJumpDialogBinding
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.mikepenz.fastadapter.FastAdapter
-import com.mikepenz.fastadapter.IAdapter
 import com.mikepenz.fastadapter.adapters.ItemAdapter
 import com.mikepenz.fastadapter.items.AbstractItem
-import com.mikepenz.fastadapter.listeners.ClickEventHook
 import com.mikepenz.fastadapter.select.getSelectExtension
 import com.mikepenz.fastadapter.select.selectExtension
-import com.mikepenz.fastadapter.utils.AdapterPredicate
 import javax.security.auth.DestroyFailedException
 
 /*
@@ -60,8 +61,7 @@ import javax.security.auth.DestroyFailedException
 class NovelController(bundle: Bundle) :
 	FastAdapterRecyclerController<ControllerNovelInfoBinding,
 			AbstractItem<*>>(bundle),
-	FABController,
-	BottomMenuController {
+	FABController {
 
 	/*
 	/** Fixes invalid adapter postion errors */
@@ -71,7 +71,7 @@ class NovelController(bundle: Bundle) :
 			}
 	*/
 
-	internal val viewModel: INovelViewModel by viewModel()
+	internal val viewModel: ANovelViewModel by viewModel()
 	override val viewTitle: String
 		get() = ""
 	private var resume: FloatingActionButton? = null
@@ -105,13 +105,21 @@ class NovelController(bundle: Bundle) :
 
 	/** Refreshes the novel */
 	private fun refresh() {
-		logD("Refreshing")
-		viewModel.refresh().observe(this) {
-			when (it) {
-				is HResult.Loading -> binding.swipeRefreshLayout.isRefreshing = true
-				is HResult.Success -> binding.swipeRefreshLayout.isRefreshing = false
-				is HResult.Error -> binding.swipeRefreshLayout.isRefreshing = false
-				is HResult.Empty -> binding.swipeRefreshLayout.isRefreshing = false
+		logI("Refreshing the novel data")
+		viewModel.refresh().observe { refreshResult ->
+			refreshResult.handle(
+				onLoading = {
+					binding.progressBar.isVisible = true
+				},
+				onEmpty = {
+					makeSnackBar(R.string.controller_novel_snackbar_refresh_empty_result)?.show()
+				},
+				onError = {
+					logE("Failed refreshing the novel data", it.exception)
+					makeSnackBar(it.message)?.show()
+				}
+			) {
+				logI("Successfully reloaded novel")
 			}
 		}
 	}
@@ -126,12 +134,8 @@ class NovelController(bundle: Bundle) :
 
 	private fun getChapters(): List<ChapterUI> = chapterUIAdapter.itemList.items
 
-	override fun hideFAB(fab: FloatingActionButton) {
-		if (getChapters().isNotEmpty()) super.hideFAB(fab)
-	}
-
 	override fun showFAB(fab: FloatingActionButton) {
-		if (getChapters().isNotEmpty() && actionMode == null) super.showFAB(fab)
+		if (actionMode == null) super.showFAB(fab)
 	}
 
 	override fun manipulateFAB(fab: FloatingActionButton) {
@@ -140,14 +144,13 @@ class NovelController(bundle: Bundle) :
 			viewModel.openLastRead(getChapters()).observe(this, { result ->
 				when (result) {
 					is HResult.Error -> {
-						Log.e(logID(), "Loading last read hit an error")
+						logE("Loading last read hit an error")
 					}
 					is HResult.Empty -> {
-						context?.toast("You already read all the chapters")
+						makeSnackBar(R.string.controller_novel_snackbar_finished_reading)?.show()
 					}
 					is HResult.Success -> {
 						val chapterIndex = result.data
-						Log.d(logID(), "Got a value of $chapterIndex")
 						if (chapterIndex != -1) {
 							recyclerView.scrollToPosition(itemAdapter.getAdapterPosition(getChapters()[chapterIndex].identifier))
 							activity?.openChapter(getChapters()[chapterIndex])
@@ -184,7 +187,7 @@ class NovelController(bundle: Bundle) :
 	override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
 		id.source_migrate -> {
 			// migrateOpen()
-			toast { "Sorry, This hasn't been implemented yet" }
+			makeSnackBar(R.string.regret)?.dismiss()
 			true
 		}
 		id.webview -> {
@@ -197,6 +200,10 @@ class NovelController(bundle: Bundle) :
 		}
 		id.share -> {
 			viewModel.share()
+			true
+		}
+		id.option_chapter_jump -> {
+			openChapterJumpDialog()
 			true
 		}
 		id.download_next -> {
@@ -212,6 +219,7 @@ class NovelController(bundle: Bundle) :
 			true
 		}
 		id.download_custom -> {
+			downloadCustom()
 			true
 		}
 		id.download_unread -> {
@@ -225,6 +233,100 @@ class NovelController(bundle: Bundle) :
 		else -> super.onOptionsItemSelected(item)
 	}
 
+	private fun openChapterJumpDialog() {
+		val binding =
+			ControllerNovelJumpDialogBinding.inflate(LayoutInflater.from(recyclerView.context))
+
+		// Change hint & input type depending on findByChapterName state
+		binding.findByChapterName.setOnCheckedChangeListener { _, isChecked ->
+			if (isChecked) {
+				binding.editTextNumber.inputType = TYPE_TEXT_FLAG_NO_SUGGESTIONS
+				binding.editTextNumber.setHint(R.string.controller_novel_jump_dialog_hint_chapter_title)
+			} else {
+				binding.editTextNumber.inputType = TYPE_NUMBER_FLAG_DECIMAL
+				binding.editTextNumber.setHint(R.string.controller_novel_jump_dialog_hint_chapter_number)
+			}
+		}
+
+		AlertDialog.Builder(recyclerView.context)
+			.setView(binding.root)
+			.setTitle(R.string.jump_to_chapter)
+			.setNegativeButton(android.R.string.cancel) { _, _ ->
+			}
+			.setPositiveButton(R.string.alert_dialog_jump_positive) { _, _ ->
+				/**
+				 * The predicate to use to find the chapter to scroll to
+				 */
+				val predicate: (ChapterUI) -> Boolean
+
+				@Suppress("LiftReturnOrAssignment")
+				if (binding.findByChapterName.isChecked) {
+					// Predicate will be searching if the title contains the text
+					val text = binding.editTextNumber.text.toString()
+					if (text.isBlank()) {
+						makeSnackBar(R.string.toast_error_chapter_jump_empty_title)
+							?.setAction(R.string.generic_question_retry) { openChapterJumpDialog() }
+							?.show()
+						return@setPositiveButton
+					}
+
+					predicate = { it.title.contains(text) }
+				} else {
+					// Predicate will be searching if the # is equal
+
+					val selectedNumber =
+						binding.editTextNumber.text.toString().toDoubleOrNull()?.plus(1.0) ?: run {
+							makeSnackBar(R.string.toast_error_chapter_jump_invalid_number)
+								?.setAction(R.string.generic_question_retry) { openChapterJumpDialog() }
+								?.show()
+							return@setPositiveButton
+						}
+
+					predicate = { it.order == selectedNumber }
+				}
+
+				// Search for chapter on IO, then jump to it on UI
+				launchIO {
+					chapterUIAdapter.adapterItems
+						.indexOfFirst(predicate)
+						.takeIf { it != -1 }?.let { index ->
+							launchUI {
+								recyclerView.smoothScrollToPosition(index)
+							}
+						} ?: launchUI {
+						makeSnackBar(R.string.toast_error_chapter_jump_invalid_target)
+							?.setAction(R.string.generic_question_retry) {
+								openChapterJumpDialog()
+							}
+							?.show()
+					}
+				}
+			}.show()
+	}
+
+	/**
+	 * download a custom amount of chapters
+	 */
+	private fun downloadCustom() {
+		if (context == null) return
+		AlertDialog.Builder(binding.root.context!!).apply {
+			setTitle(R.string.download_custom_chapters)
+			val numberPicker = NumberPicker(binding.root.context).apply {
+				minValue = 0
+				maxValue = getChapters().size
+			}
+			setView(numberPicker)
+
+			setPositiveButton(android.R.string.ok) { d, _ ->
+				viewModel.downloadNextCustomChapters(numberPicker.value)
+				d.dismiss()
+			}
+			setNegativeButton(android.R.string.cancel) { d, _ ->
+				d.cancel()
+			}
+		}.show()
+	}
+
 	override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
 		inflater.inflate(R.menu.toolbar_novel, menu)
 		menu.findItem(id.source_migrate).isVisible = viewModel.isBookmarked()
@@ -235,23 +337,24 @@ class NovelController(bundle: Bundle) :
 		binding.swipeRefreshLayout.setOnRefreshListener {
 			if (viewModel.isOnline())
 				refresh()
-			else toast(R.string.you_not_online)
+			else displayOfflineSnackBar()
+			binding.swipeRefreshLayout.isRefreshing = false
 		}
 
+		(activity as? MainActivity)?.holdAtBottom(binding.bottomMenu)
 	}
 
 	private fun calculateBottomSelectionMenuChanges() {
 		val chaptersSelected =
 			fastAdapter.getSelectExtension().selectedItems.filterIsInstance<ChapterUI>()
 
-		// If any are not bookmarked, show bookmark option
-		if (chaptersSelected.any { !it.bookmarked }) {
-			binding.bottomMenu.findItem(id.bookmark)?.isVisible = false
-			binding.bottomMenu.findItem(id.remove_bookmark)?.isVisible = true
-		} else {
-			binding.bottomMenu.findItem(id.bookmark)?.isVisible = true
-			binding.bottomMenu.findItem(id.remove_bookmark)?.isVisible = false
-		}
+		// If any chapters are bookmarked, show the remove bookmark logo
+		binding.bottomMenu.findItem(id.remove_bookmark)?.isVisible =
+			chaptersSelected.any { it.bookmarked }
+
+		// If any chapters are not bookmarked, show bookmark
+		binding.bottomMenu.findItem(id.bookmark)?.isVisible =
+			chaptersSelected.any { !it.bookmarked }
 
 		// If any are downloaded, show delete
 		binding.bottomMenu.findItem(id.chapter_delete_selected)?.isVisible =
@@ -271,26 +374,36 @@ class NovelController(bundle: Bundle) :
 		}
 	}
 
-	override fun setupFastAdapter() {
-		fastAdapter.selectExtension {
+	override fun FastAdapter<AbstractItem<*>>.setupFastAdapter() {
+		selectExtension {
 			isSelectable = true
 			multiSelect = true
 			selectOnLongClick = true
-			setSelectionListener { item, _ ->
+			setSelectionListener { item, isSelected ->
 				// Recreates the item view
-				fastAdapter.notifyItemChanged(fastAdapter.getPosition(item))
+				this@setupFastAdapter.notifyItemChanged(this@setupFastAdapter.getPosition(item))
 
 				// Updates action mode
 				calculateBottomSelectionMenuChanges()
 
 				// Swaps the options menu on top
 				val size = selectedItems.size
+
+				// Incase the size is empty and the item is selected, add the item and try again
+				if (size == 0 && isSelected) {
+					logE("Migrating selection bug")
+					(fastAdapter.getItemById(item.identifier)?.first as? ChapterUI)?.isSelected =
+						true
+					this.select(item, true)
+					return@setSelectionListener
+				}
+
 				if (size == 1) startSelectionAction() else if (size == 0) finishSelectionAction()
 			}
 		}
-		fastAdapter.setOnPreClickListener FastAdapterClick@{ _, _, item, position ->
+		setOnPreClickListener FastAdapterClick@{ _, _, item, position ->
 			// Handles one click select when in selection mode
-			fastAdapter.selectExtension {
+			selectExtension {
 				if (selectedItems.isNotEmpty()) {
 					if (!item.isSelected) {
 						select(
@@ -305,59 +418,47 @@ class NovelController(bundle: Bundle) :
 			}
 			false
 		}
-		fastAdapter.setOnClickListener { _, _, item, _ ->
+		setOnClickListener { _, _, item, _ ->
 			if (item !is ChapterUI) return@setOnClickListener false
 			activity?.openChapter(item)
 			true
 		}
 
-		fastAdapter.addEventHook(object : ClickEventHook<NovelUI>() {
-			override fun onBind(viewHolder: RecyclerView.ViewHolder): View? =
-				if (viewHolder is NovelUI.ViewHolder) viewHolder.binding.inLibrary else null
+		hookClickEvent(
+			bind = { it: NovelUI.ViewHolder -> it.binding.inLibrary }
+		) { _, _, _, _ ->
+			viewModel.toggleNovelBookmark()
+		}
 
-			override fun onClick(
-				v: View,
-				position: Int,
-				fastAdapter: FastAdapter<NovelUI>,
-				item: NovelUI
-			) {
-				viewModel.toggleNovelBookmark()
-			}
-		})
+		hookClickEvent(
+			bind = { it: NovelUI.ViewHolder -> it.binding.webView }
+		) { _, _, _, _ ->
+			viewModel.openWebView()
+		}
 
-		fastAdapter.addEventHook(object : ClickEventHook<NovelUI>() {
-			override fun onBind(viewHolder: RecyclerView.ViewHolder): View? =
-				if (viewHolder is NovelUI.ViewHolder) viewHolder.binding.webView else null
+		hookClickEvent(
+			bind = { it: NovelUI.ViewHolder -> it.binding.filterChip }
+		) { _, _, _, _ ->
+			openFilterMenu()
+		}
 
-			override fun onClick(
-				v: View,
-				position: Int,
-				fastAdapter: FastAdapter<NovelUI>,
-				item: NovelUI
-			) {
-				viewModel.openWebView()
-			}
-		})
-
-		fastAdapter.addEventHook(object : ClickEventHook<NovelUI>() {
-			override fun onBind(viewHolder: RecyclerView.ViewHolder): View? =
-				if (viewHolder is NovelUI.ViewHolder) viewHolder.binding.filterChip else null
-
-			override fun onClick(
-				v: View,
-				position: Int,
-				fastAdapter: FastAdapter<NovelUI>,
-				item: NovelUI
-			) {
-				openFilterMenu()
-			}
-		})
+		hookClickEvent(
+			bind = { it: NovelUI.ViewHolder -> it.binding.chipJumpTo }
+		) { _, _, _, _ ->
+			openChapterJumpDialog()
+		}
 
 		setObserver()
 	}
 
-	internal fun openFilterMenu() {
-		bottomMenuRetriever.invoke()?.show()
+	private fun openFilterMenu() {
+		BottomSheetDialog(binding.root.context).apply {
+			setContentView(bottomMenuView)
+		}.show()
+	}
+
+	override fun onDestroyView(view: View) {
+		(activity as? MainActivity)?.removeHoldAtBottom(binding.bottomMenu)
 	}
 
 	override fun onDestroy() {
@@ -371,50 +472,55 @@ class NovelController(bundle: Bundle) :
 	}
 
 	private fun setObserver() {
-		viewModel.novelLive.observe(this) { result ->
+		viewModel.novelLive.observe { result ->
 			result.handle(onError = { handleErrorResult(it) }) {
 				activity?.invalidateOptionsMenu()
 				// If the data is not present, loads it
-				if (!it.loaded) refresh()
+				if (!it.loaded) {
+					if (viewModel.isOnline()) {
+						refresh()
+					} else {
+						displayOfflineSnackBar(R.string.controller_novel_snackbar_cannot_inital_load_offline)
+					}
+				}
 			}
-		}
-		/**
-		viewModel.chaptersLive.observe(this, {
-		handleRecyclerUpdate(it)
-		})
-		 */
 
-		//viewModel.novelUILive().observe(this) { handleRecyclerUpdate(it) }
-		viewModel.novelLive.observe(this) { hResult ->
 			handleRecyclerUpdate(
 				novelUIAdapter,
 				{ showEmpty() },
 				{ hideEmpty() },
-				hResult.transform { successResult(listOf(it)) }
+				result.transform { successResult(listOf(it)) }
 			)
 		}
 
 		viewModel.chaptersLive.observe(this) {
 			handleRecyclerUpdate(chapterUIAdapter, { showEmpty() }, { hideEmpty() }, it)
+			it.handle {
+				binding.progressBar.isVisible = false
+			}
 		}
 	}
 
+	override fun showLoading() {
+		binding.progressBar.isVisible = true
+	}
+
 	override fun handleErrorResult(e: HResult.Error) {
-		super.handleErrorResult(e)
 		viewModel.reportError(e)
 	}
 
-	private fun selectedChapters(): List<ChapterUI> =
-		fastAdapter.getSelectExtension().selectedItems.filterIsInstance<ChapterUI>()
+	private val selectedChapters: List<ChapterUI>
+		get() = fastAdapter.getSelectExtension().selectedItems.filterIsInstance<ChapterUI>()
 
-	private fun selectedChapterArray(): Array<ChapterUI> = selectedChapters().toTypedArray()
+	private val selectedChapterArray: Array<ChapterUI>
+		get() = selectedChapters.toTypedArray()
 
 	private fun bookmarkSelected() {
-		viewModel.bookmarkChapters(*selectedChapterArray())
+		viewModel.bookmarkChapters(*selectedChapterArray)
 	}
 
 	private fun removeSelectedBookmark() {
-		viewModel.removeChapterBookmarks(*selectedChapterArray())
+		viewModel.removeChapterBookmarks(*selectedChapterArray)
 	}
 
 	private fun selectAll() {
@@ -422,75 +528,35 @@ class NovelController(bundle: Bundle) :
 	}
 
 	private fun invertSelection() {
-		fastAdapter.recursive(object : AdapterPredicate<AbstractItem<*>> {
-			override fun apply(
-				lastParentAdapter: IAdapter<AbstractItem<*>>,
-				lastParentPosition: Int,
-				item: AbstractItem<*>,
-				position: Int
-			): Boolean {
-				if (item.isSelected) {
-					fastAdapter.getSelectExtension().deselect(item)
-				} else {
-					fastAdapter.getSelectExtension().select(
-						adapter = lastParentAdapter,
-						item = item,
-						position = RecyclerView.NO_POSITION,
-						fireEvent = false,
-						considerSelectableFlag = true
-					)
-				}
-				return false
-			}
-		}, false)
-		fastAdapter.notifyDataSetChanged()
+		fastAdapter.invertSelection()
 	}
 
 	private fun downloadSelected() {
-		viewModel.downloadChapter(*selectedChapterArray())
+		viewModel.downloadChapter(
+			chapterUI = selectedChapterArray,
+			startManager = true
+		)
 	}
 
 	private fun deleteSelected() {
-		viewModel.delete(*selectedChapterArray())
+		viewModel.delete(*selectedChapterArray)
 	}
 
 	private fun markSelectedAs(readingStatus: ReadingStatus) {
 		viewModel.markAllChaptersAs(
-			*selectedChapterArray(),
+			*selectedChapterArray,
 			readingStatus = readingStatus
 		)
 	}
 
+	/**
+	 * Selects all chapters between the first and last selected chapter
+	 */
 	private fun selectBetween() {
-		fastAdapter.selectExtension {
-			val selectedItems = selectedChapters().sortedBy { it.order }
-			val adapterList = chapterUIAdapter.adapterItems
-			if (adapterList.isEmpty()) {
-				launchUI { toast(R.string.chapter_select_between_error_empty_adapter) }
-				return
-			}
-
-			val first = adapterList.indexOfFirst { it.id == selectedItems.first().id }
-			val last = adapterList.indexOfFirst { it.id == selectedItems.last().id }
-
-			if (first == -1) return
-			if (last == -1) return
-
-			val smallest: Int
-			val largest: Int
-			when {
-				first > last -> {
-					largest = first
-					smallest = last
-				}
-				else -> {
-					smallest = first
-					largest = last
-				}
-			}
-			adapterList.subList(smallest, largest).map { fastAdapter.getPosition(it) }
-				.let { launchUI { select(it) } }
-		}
+		fastAdapter.selectBetween(
+			chapterUIAdapter as ItemAdapter<AbstractItem<*>>,
+			selectedChapters
+		)
 	}
 
 	private inner class SelectionActionMode : ActionMode.Callback {
@@ -498,9 +564,9 @@ class NovelController(bundle: Bundle) :
 			// Hides the original action bar
 			// (activity as MainActivity?)?.supportActionBar?.hide()
 
-			mode.menuInflater.inflate(R.menu.toolbar_chapters_selected, menu)
+			mode.menuInflater.inflate(R.menu.toolbar_novel_chapters_selected, menu)
 			mode.setTitle(R.string.selection)
-			binding.bottomMenu.show(mode, R.menu.toolbar_chapters_selected_bottom) {
+			binding.bottomMenu.show(mode, R.menu.toolbar_novel_chapters_selected_bottom) {
 				when (it.itemId) {
 					id.chapter_download_selected -> {
 						downloadSelected()
@@ -567,11 +633,10 @@ class NovelController(bundle: Bundle) :
 		}
 	}
 
-	override var bottomMenuRetriever: (() -> SlidingUpBottomMenu?) = { null }
-
-	override fun getBottomMenuView(): View = NovelFilterMenuBuilder(
-		this,
-		activity!!.layoutInflater,
-		viewModel
-	).build()
+	private val bottomMenuView: View
+		get() = NovelFilterMenuBuilder(
+			this,
+			activity!!.layoutInflater,
+			viewModel
+		).build()
 }

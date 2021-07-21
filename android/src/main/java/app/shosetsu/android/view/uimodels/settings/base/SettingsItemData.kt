@@ -1,10 +1,11 @@
 package app.shosetsu.android.view.uimodels.settings.base
 
+import android.graphics.Typeface
 import android.os.Build
 import android.view.View
 import androidx.annotation.CallSuper
+import androidx.annotation.StringRes
 import androidx.core.view.isVisible
-import androidx.lifecycle.LifecycleOwner
 import app.shosetsu.android.view.uimodels.base.BaseRecyclerItem
 import app.shosetsu.android.view.uimodels.base.BindViewHolder
 import com.github.doomsdayrs.apps.shosetsu.R
@@ -34,29 +35,37 @@ import com.github.doomsdayrs.apps.shosetsu.databinding.SettingsItemBinding
 abstract class SettingsItemData(
 	val id: Int
 ) : BaseRecyclerItem<SettingsItemData.ViewHolder>() {
-	lateinit var lifecycleOwner: LifecycleOwner
-
 	/** Min version required for this setting to be visible */
 	var minVersionCode: Int = Build.VERSION_CODES.Q
 
-	var titleID: Int = -1
+	@StringRes
+	var titleRes: Int = -1
 	var titleText: String = ""
+	var isBoldTitle: Boolean = false
 
-	var descID: Int = -1
+	@StringRes
+	var descRes: Int = -1
 	var descText: String = ""
+
+	override var identifier: Long
+		get() = id.toLong()
+		set(value) {}
 
 	@CallSuper
 	open fun bindBinding(holder: SettingsItemBinding, payloads: List<Any>) = with(holder) {
 		itemView.isSelected = isSelected
 
-		if (titleID != -1)
-			settingsItemTitle.setText(titleID)
+		if (titleRes != -1)
+			settingsItemTitle.setText(titleRes)
 		else
 			settingsItemTitle.text = titleText
 
-		if (descID != -1) {
+		if (isBoldTitle)
+			settingsItemTitle.setTypeface(null, Typeface.BOLD)
+
+		if (descRes != -1) {
 			settingsItemDesc.isVisible = true
-			settingsItemDesc.setText(descID)
+			settingsItemDesc.setText(descRes)
 		} else if (descText.isNotEmpty()) {
 			settingsItemDesc.isVisible = true
 			settingsItemDesc.text = descText

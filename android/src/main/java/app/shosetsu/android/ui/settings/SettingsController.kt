@@ -2,14 +2,15 @@ package app.shosetsu.android.ui.settings
 
 import android.view.View
 import app.shosetsu.android.common.ext.setOnClickListener
+import app.shosetsu.android.common.ext.shosetsuPush
 import app.shosetsu.android.ui.settings.sub.*
 import app.shosetsu.android.ui.settings.sub.backup.BackupSettings
-import app.shosetsu.android.view.controller.FastAdapterRecyclerController.BasicFastAdapterRecyclerController
-import app.shosetsu.android.view.controller.base.PushCapableController
+import app.shosetsu.android.view.controller.GenericFastAdapterRecyclerController
 import app.shosetsu.android.view.uimodels.model.SettingsCategoryUI
+import app.shosetsu.common.dto.HResult
 import app.shosetsu.common.enums.SettingCategory.*
-import com.bluelinelabs.conductor.Controller
 import com.github.doomsdayrs.apps.shosetsu.R
+import com.mikepenz.fastadapter.FastAdapter
 
 /*
  * This file is part of Shosetsu.
@@ -32,10 +33,8 @@ import com.github.doomsdayrs.apps.shosetsu.R
  * Shosetsu
  * 9 / June / 2019
  */
-class SettingsController : BasicFastAdapterRecyclerController<SettingsCategoryUI>(),
-	PushCapableController {
+class SettingsController : GenericFastAdapterRecyclerController<SettingsCategoryUI>() {
 	override val viewTitleRes: Int = R.string.settings
-	override var pushController: (Controller) -> Unit = {}
 
 	override var recyclerArray: ArrayList<SettingsCategoryUI>
 		get() = arrayListOf(
@@ -56,9 +55,9 @@ class SettingsController : BasicFastAdapterRecyclerController<SettingsCategoryUI
 		super.setupRecyclerView()
 	}
 
-	override fun setupFastAdapter() {
-		fastAdapter.setOnClickListener { _, _, item, _ ->
-			pushController(
+	override fun FastAdapter<SettingsCategoryUI>.setupFastAdapter() {
+		setOnClickListener { _, _, item, _ ->
+			router.shosetsuPush(
 				when (item.category) {
 					VIEW -> ViewSettings()
 					ADVANCED -> AdvancedSettings()
@@ -71,5 +70,9 @@ class SettingsController : BasicFastAdapterRecyclerController<SettingsCategoryUI
 			true
 		}
 		updateUI(recyclerArray)
+	}
+
+	override fun handleErrorResult(e: HResult.Error) {
+		TODO("Not yet implemented")
 	}
 }

@@ -1,6 +1,8 @@
 package app.shosetsu.android.viewmodel.abstracted.settings
 
+import androidx.lifecycle.LiveData
 import app.shosetsu.common.domain.repositories.base.ISettingsRepository
+import app.shosetsu.common.dto.HResult
 
 /*
  * This file is part of shosetsu.
@@ -24,4 +26,11 @@ import app.shosetsu.common.domain.repositories.base.ISettingsRepository
  * 31 / 08 / 2020
  */
 abstract class ABackupSettingsViewModel(iSettingsRepository: ISettingsRepository) :
-	ASubSettingsViewModel(iSettingsRepository)
+	ASubSettingsViewModel(iSettingsRepository) {
+
+	/** Order the app to create a new backup now */
+	abstract fun startBackup()
+	abstract fun loadInternalOptions(): LiveData<HResult<List<String>>>
+	abstract fun restore(path: String, external: Boolean = false)
+
+}

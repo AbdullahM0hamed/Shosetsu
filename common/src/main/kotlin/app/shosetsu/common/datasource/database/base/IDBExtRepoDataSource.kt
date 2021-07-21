@@ -38,4 +38,6 @@ interface IDBExtRepoDataSource {
 	suspend fun addRepository(repositoryEntity: RepositoryEntity): HResult<*>
 
 	suspend fun remove(entity: RepositoryEntity): HResult<*>
+	suspend fun update(entity: RepositoryEntity): HResult<*>
+	suspend fun insert(entity: RepositoryEntity):HResult<*>
 }

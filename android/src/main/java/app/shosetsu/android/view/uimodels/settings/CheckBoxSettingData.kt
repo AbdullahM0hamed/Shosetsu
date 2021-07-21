@@ -24,6 +24,7 @@ import com.github.doomsdayrs.apps.shosetsu.databinding.SettingsItemBinding
 /**
  * shosetsu
  * 25 / 06 / 2020
+ *
  */
 class CheckBoxSettingData(id: Int) : ToggleableStateSettingData(id) {
 	override fun bindBinding(holder: SettingsItemBinding, payloads: List<Any>) {

@@ -2,10 +2,10 @@ package app.shosetsu.android.datasource.local.database
 
 import app.shosetsu.android.datasource.local.database.impl.*
 import app.shosetsu.common.datasource.database.base.*
-import org.kodein.di.Kodein
-import org.kodein.di.generic.bind
-import org.kodein.di.generic.instance
-import org.kodein.di.generic.singleton
+import org.kodein.di.DI
+import org.kodein.di.bind
+import org.kodein.di.instance
+import org.kodein.di.singleton
 
 /*
  * This file is part of Shosetsu.
@@ -27,7 +27,7 @@ import org.kodein.di.generic.singleton
 /**
  * 01 / 01 / 2021
  */
-val dbDataSourceModule = Kodein.Module("database_data_source") {
+val dbDataSourceModule = DI.Module("database_data_source") {
 	bind<IDBChaptersDataSource>() with singleton { DBChaptersDataSource(instance()) }
 	bind<IDBDownloadsDataSource>() with singleton { DBDownloadsDataSource(instance()) }
 
@@ -42,5 +42,10 @@ val dbDataSourceModule = Kodein.Module("database_data_source") {
 	bind<IDBUpdatesDataSource>() with singleton { DBUpdatesDataSource(instance()) }
 
 	bind<IDBNovelSettingsDataSource>() with singleton { DBNovelSettingsDataSource(instance()) }
+	bind<IDBNovelReaderSettingsDataSource>() with singleton {
+		DBNovelReaderSettingsDataSource(
+			instance()
+		)
+	}
 
 }

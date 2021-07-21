@@ -29,26 +29,10 @@ import app.shosetsu.lib.Novel.ChapterType
  * @param key Identifier
  * @param chapterType What the chapter type being loaded must be
  */
+@Deprecated("Just use a raw usage of ChapterType")
 enum class ReaderType(val key: Int, val chapterType: ChapterType) {
-	/**
-	 * A simple text view
-	 *
-	 * @see app.shosetsu.lib.Novel.ChapterType.STRING
-	 */
-	BASIC_TEXT(0, ChapterType.STRING),
 
-	/**
-	 * An advanced text reader
-	 * Features (planned):
-	 * - Paging support
-	 * - 2 pages on screen at once support
-	 * - Hopefully have animations
-	 * - Properly split text between pages
-	 * - Limit words per page by X amount
-	 *
-	 * @see app.shosetsu.lib.Novel.ChapterType.STRING
-	 */
-	ADV_TEXT(1, ChapterType.STRING),
+	STRING(1, ChapterType.STRING),
 
 	/**
 	 * Loads the chapter content up as a website
@@ -76,9 +60,13 @@ enum class ReaderType(val key: Int, val chapterType: ChapterType) {
 	 *
 	 * @see app.shosetsu.lib.Novel.ChapterType.MARKDOWN
 	 */
-	MARK_DOWN(4, ChapterType.MARKDOWN);
+	MARK_DOWN(5, ChapterType.MARKDOWN);
 
 	companion object {
-		fun fromKey(key: Int) = values().find { it.key == key }!!
+		fun valueOf(key: Int) =
+			values().find { it.key == key } ?: STRING
+
+		fun valueOf(chapterType: ChapterType) =
+			values().find { it.chapterType == chapterType } ?: STRING
 	}
 }

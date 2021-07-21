@@ -5,12 +5,10 @@ import app.shosetsu.android.common.ext.toHError
 import app.shosetsu.android.providers.database.dao.ChaptersDao
 import app.shosetsu.common.datasource.database.base.IDBChaptersDataSource
 import app.shosetsu.common.domain.model.local.ChapterEntity
-import app.shosetsu.common.domain.model.local.NovelEntity
 import app.shosetsu.common.domain.model.local.ReaderChapterEntity
 import app.shosetsu.common.dto.*
 import app.shosetsu.lib.Novel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 
@@ -44,7 +42,7 @@ class DBChaptersDataSource(
 	@ExperimentalCoroutinesApi
 	override suspend fun getChaptersFlow(
 		novelID: Int,
-	): Flow<HResult<List<ChapterEntity>>> = flow {
+	): HListFlow<ChapterEntity> = flow {
 		emit(loading())
 		try {
 			emitAll(chaptersDao.getChaptersFlow(novelID).mapLatestListTo().mapLatestToSuccess())
@@ -53,7 +51,7 @@ class DBChaptersDataSource(
 		}
 	}
 
-	override suspend fun getChapters(novelID: Int): HResult<List<ChapterEntity>> = try {
+	override suspend fun getChapters(novelID: Int): HList<ChapterEntity> = try {
 		successResult(chaptersDao.getChapters(novelID).convertList())
 	} catch (e: Exception) {
 		e.toHError()
@@ -68,7 +66,7 @@ class DBChaptersDataSource(
 	@ExperimentalCoroutinesApi
 	override suspend fun getReaderChapters(
 		novelID: Int,
-	): Flow<HResult<List<ReaderChapterEntity>>> = flow {
+	): HListFlow<ReaderChapterEntity> = flow {
 		emit(loading())
 		try {
 			emitAll(chaptersDao.getReaderChaptersFlow(novelID).mapLatestToSuccess())
@@ -78,21 +76,23 @@ class DBChaptersDataSource(
 	}
 
 	override suspend fun handleChapters(
-		novelEntity: NovelEntity,
+		novelID: Int,
+		extensionID: Int,
 		list: List<Novel.Chapter>,
 	): HResult<*> =
 		try {
-			successResult(chaptersDao.handleChapters(novelEntity, list))
+			successResult(chaptersDao.handleNewData(novelID, extensionID, list))
 		} catch (e: Exception) {
 			e.toHError()
 		}
 
 
 	override suspend fun handleChapterReturn(
-		novelEntity: NovelEntity,
+		novelID: Int,
+		extensionID: Int,
 		list: List<Novel.Chapter>,
-	): HResult<List<ChapterEntity>> = try {
-		chaptersDao.handleChaptersReturnNew(novelEntity, list).convertList()
+	): HList<ChapterEntity> = try {
+		chaptersDao.handleNewDataReturn(novelID, extensionID, list).convertList()
 			.let { successResult(it) }
 	} catch (e: Exception) {
 		e.toHError()
@@ -107,7 +107,7 @@ class DBChaptersDataSource(
 
 	override suspend fun updateReaderChapter(readerChapterEntity: ReaderChapterEntity): HResult<*> =
 		try {
-			successResult(chaptersDao.updateReaderChapter(readerChapterEntity))
+			successResult(chaptersDao.update(readerChapterEntity))
 		} catch (e: Exception) {
 			e.toHError()
 		}

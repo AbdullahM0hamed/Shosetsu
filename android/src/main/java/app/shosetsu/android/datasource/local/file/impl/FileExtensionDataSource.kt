@@ -1,19 +1,20 @@
 package app.shosetsu.android.datasource.local.file.impl
 
-import app.shosetsu.android.common.consts.SCRIPT_DIR
-import app.shosetsu.android.common.consts.SOURCE_DIR
+import app.shosetsu.android.common.consts.FILE_SCRIPT_DIR
+import app.shosetsu.android.common.consts.FILE_SOURCE_DIR
 import app.shosetsu.android.common.ext.logV
 import app.shosetsu.android.common.ext.toHError
-import app.shosetsu.common.providers.file.base.IFileSystemProvider
-import app.shosetsu.common.consts.ErrorKeys.ERROR_LUA_GENERAL
-import app.shosetsu.common.consts.ErrorKeys.ERROR_NOT_FOUND
 import app.shosetsu.common.datasource.file.base.IFileExtensionDataSource
-import app.shosetsu.common.dto.*
+import app.shosetsu.common.domain.model.local.ExtensionEntity
+import app.shosetsu.common.dto.HResult
+import app.shosetsu.common.dto.handle
+import app.shosetsu.common.dto.successResult
+import app.shosetsu.common.dto.transform
 import app.shosetsu.common.enums.InternalFileDir.FILES
+import app.shosetsu.common.providers.file.base.IFileSystemProvider
+import app.shosetsu.common.utils.asIEntity
+import app.shosetsu.common.utils.fileExtension
 import app.shosetsu.lib.IExtension
-import app.shosetsu.lib.lua.LuaExtension
-import org.luaj.vm2.LuaError
-import java.io.FileNotFoundException
 
 /*
  * This file is part of shosetsu.
@@ -41,7 +42,7 @@ class FileExtensionDataSource(
 ) : IFileExtensionDataSource {
 	init {
 		logV("Creating required directories")
-		iFileSystemProvider.createDirectory(FILES, "$SOURCE_DIR$SCRIPT_DIR").handle(
+		iFileSystemProvider.createDirectory(FILES, "$FILE_SOURCE_DIR$FILE_SCRIPT_DIR").handle(
 			onError = {
 				logV("Error on creation of directories $it")
 			},
@@ -51,35 +52,28 @@ class FileExtensionDataSource(
 		)
 	}
 
-	private fun makeExtensionFileURL(fileName: String): String =
-		"$SOURCE_DIR$SCRIPT_DIR$fileName.lua"
+	private fun makeExtensionFileURL(entity: ExtensionEntity): String =
+		"$FILE_SOURCE_DIR$FILE_SCRIPT_DIR${entity.fileName}.${entity.type.fileExtension}"
 
 
-	override suspend fun loadExtension(fileName: String): HResult<IExtension> = try {
-		iFileSystemProvider.readFile(FILES, makeExtensionFileURL(fileName)).transform {
+	override suspend fun loadExtension(entity: ExtensionEntity): HResult<IExtension> =
+		iFileSystemProvider.readFile(FILES, makeExtensionFileURL(entity)).transform {
 			try {
-				successResult(LuaExtension(it, fileName))
+				successResult(entity.asIEntity(it))
 			} catch (e: Exception) {
 				e.toHError()
 			}
 		}
-	} catch (e: LuaError) {
-		errorResult(
-			ERROR_LUA_GENERAL, e.message
-				?: "Unknown Lua Error", e
+
+	override suspend fun writeExtension(entity: ExtensionEntity, data: ByteArray): HResult<*> =
+		iFileSystemProvider.writeFile(
+			FILES,
+			makeExtensionFileURL(entity),
+			data
 		)
-	} catch (e: FileNotFoundException) {
-		errorResult(
-			ERROR_NOT_FOUND, e.message
-				?: "Unknown file not found", e
-		)
-	}
-
-	override suspend fun writeExtension(fileName: String, data: String): HResult<*> =
-		iFileSystemProvider.writeFile(FILES, makeExtensionFileURL(fileName), data)
 
 
-	override suspend fun deleteExtension(fileName: String): HResult<*> =
-		iFileSystemProvider.deleteFile(FILES, makeExtensionFileURL(fileName))
+	override suspend fun deleteExtension(entity: ExtensionEntity): HResult<*> =
+		iFileSystemProvider.deleteFile(FILES, makeExtensionFileURL(entity))
 
 }

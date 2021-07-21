@@ -42,9 +42,9 @@ class LoadLibraryUseCase(
 	private val settingsRepo: ISettingsRepository,
 ) {
 	operator fun invoke(): Flow<HResult<List<ABookmarkedNovelUI>>> =
-		novelsRepo.loadBookmarkedNovelFlow()
+		novelsRepo.loadLibraryNovelEntities()
 			.combine(settingsRepo.getIntFlow(SelectedNovelCardType).mapLatest {
-				NovelCardType.fromInt(it)
+				NovelCardType.valueOf(it)
 			}) { origin, cardType ->
 				origin.transform {
 					val list = it

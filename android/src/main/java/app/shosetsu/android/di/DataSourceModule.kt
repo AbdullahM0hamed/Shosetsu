@@ -2,7 +2,7 @@ package app.shosetsu.android.di
 
 import app.shosetsu.android.datasource.local.localDataSourceModule
 import app.shosetsu.android.datasource.remote.remoteDataSouceModule
-import org.kodein.di.Kodein
+import org.kodein.di.DI
 
 /*
  * This file is part of Shosetsu.
@@ -24,7 +24,7 @@ import org.kodein.di.Kodein
 /**
  * 02 / 01 / 2021
  */
-val dataSourceModule = Kodein.Module("data_source") {
+val dataSourceModule = DI.Module("data_source") {
 	import(localDataSourceModule)
 	import(remoteDataSouceModule)
 }

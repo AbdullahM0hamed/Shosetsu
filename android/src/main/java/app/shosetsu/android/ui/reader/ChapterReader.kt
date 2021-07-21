@@ -1,44 +1,50 @@
 package app.shosetsu.android.ui.reader
 
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.View
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.Toolbar
-import androidx.core.util.set
 import androidx.core.view.isVisible
+import androidx.lifecycle.LiveData
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
+import androidx.viewpager2.widget.ViewPager2.*
 import app.shosetsu.android.common.consts.BundleKeys.BUNDLE_CHAPTER_ID
 import app.shosetsu.android.common.consts.BundleKeys.BUNDLE_NOVEL_ID
 import app.shosetsu.android.common.consts.READER_BAR_ALPHA
 import app.shosetsu.android.common.ext.*
-import app.shosetsu.android.ui.reader.types.base.TypedReaderViewHolder
-import app.shosetsu.android.view.uimodels.model.ColorChoiceUI
+import app.shosetsu.android.ui.reader.types.base.ReaderChapterViewHolder
 import app.shosetsu.android.view.uimodels.model.reader.ReaderChapterUI
 import app.shosetsu.android.view.uimodels.model.reader.ReaderDividerUI
 import app.shosetsu.android.view.uimodels.model.reader.ReaderUIItem
-import app.shosetsu.android.viewmodel.abstracted.IChapterReaderViewModel
+import app.shosetsu.android.view.uimodels.settings.base.SettingsItemData
+import app.shosetsu.android.viewmodel.abstracted.AChapterReaderViewModel
+import app.shosetsu.common.dto.HResult
 import app.shosetsu.common.dto.handle
 import app.shosetsu.common.enums.ReadingStatus
-import app.shosetsu.common.enums.TextSizes
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.github.doomsdayrs.apps.shosetsu.databinding.ActivityReaderBinding
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.*
 import com.mikepenz.fastadapter.FastAdapter
+import com.mikepenz.fastadapter.IItemVHFactory
 import com.mikepenz.fastadapter.adapters.ItemAdapter
 import com.mikepenz.fastadapter.diff.FastAdapterDiffUtil
 import com.mikepenz.fastadapter.diff.FastAdapterDiffUtil.calculateDiff
-import com.mikepenz.fastadapter.select.selectExtension
+import com.mikepenz.fastadapter.listeners.OnCreateViewHolderListenerImpl
 import com.skydoves.colorpickerview.ColorPickerDialog
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.closestKodein
-import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.delay
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
+
 
 /*
  * This file is part of shosetsu.
@@ -62,10 +68,9 @@ import kotlin.system.measureTimeMillis
  * 13 / 12 / 2019
  */
 class ChapterReader
-	: AppCompatActivity(), KodeinAware {
-	override val kodein: Kodein by closestKodein()
-	internal val viewModel: IChapterReaderViewModel by viewModel()
-
+	: AppCompatActivity(), DIAware {
+	override val di: DI by closestDI()
+	internal val viewModel: AChapterReaderViewModel by viewModel()
 	private lateinit var binding: ActivityReaderBinding
 
 	private val toolbar: MaterialToolbar
@@ -74,54 +79,58 @@ class ChapterReader
 	private val chapterReaderBottom: LinearLayout
 		get() = binding.chapterReaderBottom.chapterReaderBottom
 
-	private val viewpager
+	private val viewpager: ViewPager2
 		get() = binding.viewpager
 
-	private val drawerToggle
+	private val drawerToggle: AppCompatImageButton
 		get() = binding.chapterReaderBottom.drawerToggle
 
-	private val textSizeBar
-		get() = binding.chapterReaderBottom.textSizeBar
-	private val paraIndentBar
-		get() = binding.chapterReaderBottom.paraIndentBar
-	private val paraSpaceBar
-		get() = binding.chapterReaderBottom.paraSpaceBar
-
-	private val colorPickerOptions
-		get() = binding.chapterReaderBottom.colorPickerOptions
-	private val volumeToScrollBar
-		get() = binding.chapterReaderBottom.volumeToScrollBar
+	private val bottomMenuRecycler: RecyclerView
+		get() = binding.chapterReaderBottom.recyclerView
 
 
 	private val pageChangeCallback: OnPageChangeCallback by lazy { ChapterReaderPageChange() }
-
 	private val itemAdapter by lazy { ItemAdapter<ReaderUIItem<*, *>>() }
-	private val fastAdapter by lazy { FastAdapter.with(itemAdapter) }
 
-	private val bookmark
+	private var chapterViewHolders = ArrayList<ReaderChapterViewHolder?>()
+
+	private val viewHolderListener = object : OnCreateViewHolderListenerImpl<ReaderUIItem<*, *>>() {
+		override fun onPostCreateViewHolder(
+			fastAdapter: FastAdapter<ReaderUIItem<*, *>>,
+			viewHolder: RecyclerView.ViewHolder,
+			itemVHFactory: IItemVHFactory<*>
+		): RecyclerView.ViewHolder {
+			chapterViewHolders.removeAll { it == null }
+			if (viewHolder is ReaderChapterViewHolder) chapterViewHolders.add(viewHolder)
+
+			return super.onPostCreateViewHolder(fastAdapter, viewHolder, itemVHFactory)
+		}
+	}
+	private val fastAdapter by lazy {
+		FastAdapter.with(itemAdapter).apply {
+			this.onCreateViewHolderListener = viewHolderListener
+		}
+	}
+
+	private val bookmarkButton
 		get() = binding.chapterReaderBottom.bookmark
 
-	private val themeSelect
+	private val rotationLockButton
+		get() = binding.chapterReaderBottom.rotationLockButton
+
+	private val themeSelectButton
 		get() = binding.chapterReaderBottom.themeSelect
 
 	/** Gets chapters from the [itemAdapter] */
 	private val chapterItems: List<ReaderChapterUI>
-		get() = itemAdapter.itemList.items.filterIsInstance<ReaderChapterUI>()
+		get() = itemAdapter.adapterItems.filterIsInstance<ReaderChapterUI>()
 
 	/** Gets dividers from the [itemAdapter] */
 	val dividerItems: List<ReaderDividerUI>
-		get() = itemAdapter.itemList.items.filterIsInstance<ReaderDividerUI>()
+		get() = itemAdapter.adapterItems.filterIsInstance<ReaderDividerUI>()
 
 	private val bottomSheetBehavior: ChapterReaderBottomBar<LinearLayout> by lazy {
 		from(chapterReaderBottom) as ChapterReaderBottomBar
-	}
-
-	private val colorItemAdapterUI: ItemAdapter<ColorChoiceUI> by lazy {
-		ItemAdapter()
-	}
-
-	private val colorFastAdapterUI: FastAdapter<ColorChoiceUI> by lazy {
-		FastAdapter.with(colorItemAdapterUI)
 	}
 
 	override fun onResume() {
@@ -131,7 +140,7 @@ class ChapterReader
 
 	/** On Create */
 	public override fun onCreate(savedInstanceState: Bundle?) {
-		logV("On Create")
+		logV("")
 		window.hideBar()
 		viewModel.apply {
 			setNovelID(intent.getIntExtra(BUNDLE_NOVEL_ID, -1))
@@ -141,8 +150,12 @@ class ChapterReader
 		super.onCreate(savedInstanceState)
 		setContentView(ActivityReaderBinding.inflate(layoutInflater).also { binding = it }.root)
 		setSupportActionBar(toolbar as Toolbar)
+
+		// Show back button
 		supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
 		//slidingUpPanelLayout.setGravity(Gravity.BOTTOM)
+
 		setupViewPager()
 		setupBottomMenu()
 		setObservers()
@@ -153,93 +166,98 @@ class ChapterReader
 
 	/** On Destroy */
 	override fun onDestroy() {
-		logD("Destroying")
+		logV("")
 		viewpager.unregisterOnPageChangeCallback(pageChangeCallback)
 		super.onDestroy()
 	}
 
 	private fun handleChaptersResult(list: List<ReaderUIItem<*, *>>) {
-		logV("handleChaptersResult")
-		val time = measureTimeMillis {
-			val oldSize = itemAdapter.itemList.size()
+		val oldSize = itemAdapter.itemList.size()
 
-			logV("Attaching self to each item")
-			val time = measureTimeMillis {
-				list.forEach {
-					if (it is ReaderChapterUI)
-						it.chapterReader = this
-				}
-			}
-			logV("Attaching self to each item completed in $time ms")
-
-			FastAdapterDiffUtil[itemAdapter] =
-				calculateDiff(itemAdapter, list)
-
-			if (oldSize == 0)
-				viewpager.setCurrentItem(getCurrentChapterIndex(), false)
+		// Provide each entity with self
+		list.filterIsInstance<ReaderChapterUI>().forEach {
+			it.chapterReader = this
 		}
-		logV("handleChaptersResult completed in $time ms")
 
+		// Update the UI
+		FastAdapterDiffUtil[itemAdapter] =
+			calculateDiff(itemAdapter, list)
+
+		// Go to the current chapter
+		if (oldSize == 0)
+			viewpager.setCurrentItem(getCurrentChapterIndex(), false)
 	}
 
 	private fun setObservers() {
-		viewModel.liveData.observe(this) { result ->
+		viewModel.liveData.observe { result ->
 			result.handle(
 				onLoading = {
-					logD("Loading")
+					logD("Loading chapters")
+				},
+				onError = {
+					logE("Error occured while loading chapters", it.exception)
+				},
+				onEmpty = {
+					logD("Recieved an empty result")
 				}
 			) {
 				handleChaptersResult(it)
 			}
 		}
 
-
-		viewModel.liveTheme.observe(this) { (t, b) ->
-			viewModel.defaultForeground = t
-			viewModel.defaultBackground = b
-
-			applyToReaders {
+		viewModel.liveTheme.observe {
+			applyToChapterViews {
 				syncTextColor()
 				syncBackgroundColor()
 			}
 		}
 
-		viewModel.liveIndentSize.observe(this) { i ->
-			viewModel.defaultIndentSize = i
-			applyToReaders {
+		viewModel.liveIndentSize.observe {
+			applyToChapterViews {
 				syncParagraphIndent()
 			}
 		}
 
-		viewModel.liveParagraphSpacing.observe(this) { i ->
-			viewModel.defaultParaSpacing = i
-			applyToReaders {
-				syncParagraphSpacing()
+		viewModel.liveParagraphSpacing.observe {
+			logD("Updating paragraph spacing to reader UI")
+			applyToChapterViews { syncParagraphSpacing() }
+		}
+
+		viewModel.liveTextSize.observe {
+			applyToChapterViews { syncTextSize() }
+		}
+
+		viewModel.liveVolumeScroll.observe {
+		}
+
+		viewModel.liveChapterDirection.observe {
+			viewpager.orientation = if (it) ORIENTATION_HORIZONTAL else ORIENTATION_VERTICAL
+		}
+
+		viewModel.liveKeepScreenOn.observe {
+			binding.root.keepScreenOn = it
+		}
+		viewModel.liveIsScreenRotationLocked.observe {
+			if (it) {
+				lockRotation()
+				rotationLockButton.setImageResource(R.drawable.ic_baseline_screen_lock_rotation_24)
+			} else {
+				unlockRotation()
+				rotationLockButton.setImageResource(R.drawable.ic_baseline_screen_rotation_24)
 			}
-		}
-
-		viewModel.liveTextSize.observe(this) { i ->
-			viewModel.defaultTextSize = i
-			applyToReaders { syncTextSize() }
-		}
-
-		viewModel.liveThemes.observe(this) { list ->
-			colorItemAdapterUI.add(list.onEach { it.inReader = true })
-		}
-
-		viewModel.liveVolumeScroll.observe(this) {
-			viewModel.volumeScroll = it
 		}
 	}
 
-	private fun applyToReaders(
+	private fun applyToChapterViews(
 		onlyCurrent: Boolean = false,
-		action: TypedReaderViewHolder.() -> Unit
+		action: ReaderChapterViewHolder.() -> Unit
 	) {
-		val textTypedReaders = chapterItems.mapNotNull { it.reader }
+		val textTypedReaders = chapterViewHolders.filterNotNull()
+		// Apply to the current chapter first
+		logD("Found ${textTypedReaders.map { it.chapter.id }}")
 		textTypedReaders.find {
 			it.chapter.id == viewModel.currentChapterID
-		}?.action()
+		}?.action() ?: logE("Did not find current chapter: ${viewModel.currentChapterID}")
 
 		// Sets other views down
 		if (!onlyCurrent)
@@ -262,7 +280,7 @@ class ChapterReader
 	}
 
 	private fun setBookmarkIcon(readerChapterUI: ReaderChapterUI) {
-		bookmark.setImageResource(
+		bookmarkButton.setImageResource(
 			if (readerChapterUI.bookmarked)
 				R.drawable.filled_bookmark
 			else R.drawable.empty_bookmark
@@ -270,7 +288,7 @@ class ChapterReader
 	}
 
 	private fun setupBottomMenu() {
-		bookmark.apply {
+		bookmarkButton.apply {
 			setOnClickListener {
 				getCurrentChapter()?.apply {
 					bookmarked = !bookmarked
@@ -279,7 +297,14 @@ class ChapterReader
 				}
 			}
 		}
-		themeSelect.apply {
+
+		rotationLockButton.apply {
+			setOnClickListener {
+				viewModel.toggleScreenRotationLock()
+			}
+		}
+
+		themeSelectButton.apply {
 			setOnClickListener {
 				ColorPickerDialog.Builder(context)
 					.setPositiveButton("") { _, _ ->
@@ -321,97 +346,22 @@ class ChapterReader
 			}
 		}
 
-		textSizeBar.apply {
-			setCustomSectionTextArray { _, array ->
-				array.apply {
-					clear()
-					this[0] = getString(R.string.small)
-					this[1] = getString(R.string.medium)
-					this[2] = getString(R.string.large)
-				}
-			}
-			setBubbleOnProgressChanged { _, progress, _, fromUser ->
-				if (fromUser) {
-					val size = when (progress) {
-						0 -> TextSizes.SMALL
-						1 -> TextSizes.MEDIUM
-						2 -> TextSizes.LARGE
-						else -> TextSizes.MEDIUM
-					}
-					viewModel.setReaderTextSize(size.i)
-				}
-			}
-		}
-
-		paraSpaceBar.apply {
-			setCustomSectionTextArray { _, array ->
-				array.apply {
-					clear()
-					this[0] = getString(R.string.none)
-					this[1] = getString(R.string.small)
-					this[2] = getString(R.string.medium)
-					this[3] = getString(R.string.large)
-				}
-			}
-			setBubbleOnProgressChanged { _, progress, _, fromUser ->
-				if (fromUser) viewModel.setReaderParaSpacing(progress)
-			}
-		}
-
-		paraIndentBar.apply {
-			setCustomSectionTextArray { _, array ->
-				array.apply {
-					clear()
-					this[0] = getString(R.string.none)
-					this[1] = getString(R.string.small)
-					this[2] = getString(R.string.medium)
-					this[3] = getString(R.string.large)
-				}
-			}
-			setBubbleOnProgressChanged { _, progress, _, fromUser ->
-				if (fromUser) viewModel.setReaderIndentSize(progress)
-			}
-		}
-
-		colorPickerOptions.apply {
-			colorFastAdapterUI.selectExtension {
-				isSelectable = true
-				setSelectionListener { item, _ ->
-					colorFastAdapterUI.notifyItemChanged(colorFastAdapterUI.getPosition(item))
-				}
-			}
-			this.adapter = colorFastAdapterUI
-			colorFastAdapterUI.setOnClickListener { _, _, item, _ ->
-				viewModel.setReaderTheme(item.identifier.toInt())
-				item.isSelected = true
-
-				run {
-					val count = colorFastAdapterUI.itemCount
-					for (i in 0 until count)
-						colorFastAdapterUI.getItem(i)?.takeIf {
-							it.identifier != item.identifier
-						}?.isSelected = false
-				}
-
-				colorFastAdapterUI.notifyDataSetChanged()
-				true
-			}
-		}
-
-		volumeToScrollBar.apply {
-			isChecked = viewModel.volumeScroll
-			this.setOnCheckedChangeListener { _, isChecked ->
-				viewModel.setOnVolumeScroll(isChecked)
+		bottomMenuRecycler.apply {
+			val itemAdapter = ItemAdapter<SettingsItemData>()
+			adapter = FastAdapter.with(itemAdapter)
+			viewModel.getSettings().handleObserve { newList ->
+				FastAdapterDiffUtil[itemAdapter] = calculateDiff(itemAdapter, newList)
 			}
 		}
 	}
 
 	private fun setupViewPager() {
-		logV("Setting up ViewPager")
+		logV("")
 		viewpager.apply {
 			adapter = fastAdapter
 			registerOnPageChangeCallback(pageChangeCallback)
-			orientation = ViewPager2.ORIENTATION_VERTICAL
+			orientation =
+				if (viewModel.isHorizontalReading) ORIENTATION_HORIZONTAL else ORIENTATION_VERTICAL
 			isNestedScrollingEnabled = true
 		}
 	}
@@ -446,32 +396,31 @@ class ChapterReader
 	 * Adds the
 	 */
 	override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-		if (viewModel.allowVolumeScroll())
+		return if (viewModel.defaultVolumeScroll)
 			when (keyCode) {
 				KeyEvent.KEYCODE_VOLUME_DOWN -> {
-					applyToReaders(true) {
-						incrementScroll()
-					}
-					return true
+					applyToChapterViews(true) { incrementScroll() }
+					true
 				}
 				KeyEvent.KEYCODE_VOLUME_UP -> {
-					applyToReaders(true) {
-						depleteScroll()
-					}
-					return true
+					applyToChapterViews(true) { depleteScroll() }
+					true
 				}
+				else -> false
 			}
-		return super.onKeyDown(keyCode, event)
+		else super.onKeyDown(keyCode, event)
 	}
 
-	private fun focusListener(view: View) {
+	private fun focusListener() {
 
 		toolbar.isVisible = if (toolbar.isVisible) {
 			toast("hidden")
+			logV("hidden")
 			chapterReaderBottom.isVisible = false
 			false
 		} else {
 			toast("shown")
+			logV("shown")
 			chapterReaderBottom.isVisible = true
 			true
 		}
@@ -483,45 +432,84 @@ class ChapterReader
 		}
 	}
 
-	fun syncReader(typedReaderViewHolder: TypedReaderViewHolder) = typedReaderViewHolder.apply {
-		chapterReader = this@ChapterReader
+	fun syncReader(typedReaderViewHolder: ReaderChapterViewHolder) = typedReaderViewHolder.apply {
 		syncBackgroundColor()
 		syncTextColor()
 		syncTextSize()
 		syncTextPadding()
-		getFocusTarget()?.setOnClickListener {
-			logI("Click")
-			focusListener(it)
-		} ?: logE("Returned target was null")
+		getFocusTarget {
+			focusListener()
+		}
 	}
+
+	private fun <T> LiveData<T>.observe(observer: (T) -> Unit) =
+		observe(this@ChapterReader, observer)
+
+	private inline fun <reified T> LiveData<HResult<T>>.handleObserve(crossinline observer: (T) -> Unit) =
+		handleObserve(this@ChapterReader, onSuccess = observer)
 
 	inner class ChapterReaderPageChange : OnPageChangeCallback() {
 		override fun onPageSelected(position: Int) {
+			onPageSelected(position, false)
+		}
+
+		private fun onPageSelected(position: Int, retry: Boolean) {
+			logV("New position: $position")
 			when (val item = itemAdapter.getAdapterItem(position)) {
 				is ReaderChapterUI -> {
-					item.apply {
-						logD("Page changed to $position ${this.link}")
-						viewModel.currentChapterID = id
-						viewModel.markAsReadingOnView(this)    // Mark read if set to onview
-						reader?.let { syncReader(it) } ?: logE("Reader is null")
-						supportActionBar?.title = title
-						setBookmarkIcon(this)
+					logV("New is a Chapter")
+					viewModel.currentChapterID = item.id
+					viewModel.markAsReadingOnView(item)    // Mark read if set to onview
+					chapterViewHolders.filterNotNull().find { it.chapter.id == item.id }
+						?.let { syncReader(it) } ?: run {
+
+						if (!retry) {
+							logE("Reader is null, retry in 200ms")
+						} else {
+							logE("Reader is still null, aborting")
+							return@run
+						}
+						launchIO {
+							delay(200)
+							launchUI { onPageSelected(position, true) }
+						}
 					}
+					supportActionBar?.title = item.title
+					setBookmarkIcon(item)
 				}
 				is ReaderDividerUI -> {
+					logV("New is a Divider")
+					viewModel.currentChapterID = -1
 					supportActionBar?.setTitle(R.string.next_chapter)
-					val lastChapter = itemAdapter.getAdapterItem(position - 1) as ReaderChapterUI
-
 					// Marks the previous chapter as read when you hit the divider
 					// This was implemented due to performance shortcuts taken due to excessive
 					// [handleChaptersResult] operation time
-					viewModel.updateChapter(
-						lastChapter,
-						readingStatus = ReadingStatus.READ,
-						readingPosition = 0
-					)
+					(itemAdapter.getAdapterItem(position - 1) as? ReaderChapterUI)?.let { lastChapter ->
+						viewModel.updateChapter(
+							lastChapter.copy(
+								readingStatus = ReadingStatus.READ,
+								readingPosition = 0.0
+							)
+						)
+					}
+
 				}
 			}
 		}
 	}
+
+	private fun lockRotation() {
+		val currentOrientation = resources.configuration.orientation
+		requestedOrientation = if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
+			ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+		} else {
+			ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+		}
+	}
+
+	private fun unlockRotation() {
+		//window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+		requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+	}
 }
+

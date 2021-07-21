@@ -8,7 +8,6 @@ import androidx.work.NetworkType.UNMETERED
 import app.shosetsu.android.backend.workers.CoroutineWorkerManager
 import app.shosetsu.android.backend.workers.onetime.AppUpdateCheckWorker
 import app.shosetsu.android.common.consts.LogConstants
-import app.shosetsu.android.common.consts.WorkerTags
 import app.shosetsu.android.common.consts.WorkerTags.APP_UPDATE_CYCLE_WORK_ID
 import app.shosetsu.android.common.ext.launchIO
 import app.shosetsu.android.common.ext.logI
@@ -16,7 +15,7 @@ import app.shosetsu.common.consts.settings.SettingKey.*
 import app.shosetsu.common.domain.repositories.base.ISettingsRepository
 import app.shosetsu.common.domain.repositories.base.getBooleanOrDefault
 import app.shosetsu.common.domain.repositories.base.getIntOrDefault
-import org.kodein.di.generic.instance
+import org.kodein.di.instance
 import java.util.concurrent.TimeUnit
 
 /*
@@ -73,17 +72,22 @@ class AppUpdateCheckCycleWorker(
 		 * @return true if the service is running, false otherwise.
 		 */
 		override fun isRunning(): Boolean = try {
-			workerManager.getWorkInfosForUniqueWork(WorkerTags.APP_UPDATE_CYCLE_WORK_ID)
-				.get()[0].state == WorkInfo.State.RUNNING
+			getWorkerState() == WorkInfo.State.RUNNING
 		} catch (e: Exception) {
 			false
 		}
+
+		override fun getWorkerState(index: Int): WorkInfo.State =
+			workerManager.getWorkInfosForUniqueWork(APP_UPDATE_CYCLE_WORK_ID).get()[index].state
+
+		override val count: Int
+			get() = workerManager.getWorkInfosForUniqueWork(APP_UPDATE_CYCLE_WORK_ID).get().size
 
 		/**
 		 * Starts the service. It will be started only if there isn't another instance already
 		 * running.
 		 */
-		override fun start() {
+		override fun start(data: Data) {
 			launchIO {
 				logI(LogConstants.SERVICE_NEW)
 				workerManager.enqueueUniquePeriodicWork(

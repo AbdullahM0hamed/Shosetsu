@@ -11,7 +11,7 @@
     android:focusable="true"
     android:gravity="center"
     android:orientation="vertical"
-    app:behavior_peekHeight="64dp"
+    app:behavior_peekHeight="@dimen/reader_bottom_bar_height"
     app:layout_behavior="app.shosetsu.android.ui.reader.ChapterReaderBottomBar"
     app:layout_constraintBottom_toBottomOf="parent"
     app:layout_constraintEnd_toEndOf="parent"
@@ -23,9 +23,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
         android:gravity="center"
         android:orientation="horizontal"
-        android:layout_marginBottom="24dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -61,7 +61,8 @@
                 android:background="?selectableItemBackgroundBorderless"
                 android:scaleX="1.5"
                 android:scaleY="1.5"
-                android:src="@drawable/color_lens" />
+                android:src="@drawable/color_lens"
+                android:visibility="gone" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/bookmark"
@@ -71,6 +72,15 @@
                 android:scaleX="1.5"
                 android:scaleY="1.5"
                 android:src="@drawable/empty_bookmark" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/rotation_lock_button"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="?selectableItemBackgroundBorderless"
+                android:scaleX="1.5"
+                android:scaleY="1.5"
+                android:src="@drawable/ic_baseline_screen_rotation_24" />
 
         </LinearLayout>
 
@@ -92,196 +102,15 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
         android:id="@+id/chapter_reader_bottom_scroll"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <LinearLayout
-            android:id="@+id/menu_drawer"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="8dp"
-            android:orientation="vertical">
-
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="@string/text_size"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <com.xw.repo.BubbleSeekBar
-                    android:id="@+id/text_size_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    app:bsb_hide_bubble="true"
-                    app:bsb_is_float_type="false"
-                    app:bsb_max="2"
-                    app:bsb_min="0"
-                    app:bsb_progress="1"
-                    app:bsb_section_count="2"
-                    app:bsb_section_text_position="below_section_mark"
-                    app:bsb_seek_step_section="true"
-                    app:bsb_show_section_mark="true"
-                    app:bsb_touch_to_seek="true" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?android:attr/listDivider" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center"
-                    android:text="@string/paragraph_spacing"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <com.xw.repo.BubbleSeekBar
-                    android:id="@+id/para_space_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    app:bsb_hide_bubble="true"
-                    app:bsb_is_float_type="false"
-                    app:bsb_max="3"
-                    app:bsb_min="0"
-                    app:bsb_progress="1"
-                    app:bsb_section_count="3"
-                    app:bsb_section_text_position="below_section_mark"
-                    app:bsb_seek_step_section="true"
-                    app:bsb_show_section_mark="true"
-                    app:bsb_touch_to_seek="true" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?android:attr/listDivider" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center"
-                    android:text="@string/paragraph_indent"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <com.xw.repo.BubbleSeekBar
-                    android:id="@+id/para_indent_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    app:bsb_hide_bubble="true"
-                    app:bsb_is_float_type="false"
-                    app:bsb_max="3"
-                    app:bsb_min="0"
-                    app:bsb_progress="1"
-                    app:bsb_section_count="3"
-                    app:bsb_section_text_position="below_section_mark"
-                    app:bsb_seek_step_section="true"
-                    app:bsb_show_section_mark="true"
-                    app:bsb_touch_to_seek="true" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?android:attr/listDivider" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center"
-                    android:text="@string/reader_theme"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/color_picker_options"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                    tools:listitem="@layout/reader_theme_selection_item" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?android:attr/listDivider" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/tap_to_scroll_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="@string/tap_to_scroll" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="4dp"
-                android:orientation="vertical">
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/volume_to_scroll_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="@string/volume_scroll" />
-
-            </LinearLayout>
-        </LinearLayout>
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/settings_item" />
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>

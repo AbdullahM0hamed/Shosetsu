@@ -50,15 +50,14 @@ class IntroductionActivity : IntroActivity() {
 			inflater: LayoutInflater,
 			container: ViewGroup?,
 			savedInstanceState: Bundle?
-		): View? {
-			return super.onCreateView(inflater, container, savedInstanceState)?.also {
+		): View? =
+			super.onCreateView(inflater, container, savedInstanceState)?.also {
 				introLicenseBinding = IntroLicenseBinding.bind(it)
 			}
-		}
 
 		override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 			if (message.isEmpty() && savedInstanceState == null)
-				message = activity?.readAsset("license.txt") ?: ""
+				message = activity?.readAsset("license-gplv3.txt") ?: ""
 			else if (message.isEmpty() && savedInstanceState != null)
 				message = savedInstanceState.getString("message", "")
 			introLicenseBinding.title.text = message
@@ -78,6 +77,7 @@ class IntroductionActivity : IntroActivity() {
 			SimpleSlide.Builder()
 				.title(R.string.intro_title_greet)
 				.background(R.color.colorPrimary)
+				.image(R.drawable.shou_icon)
 				.build()
 		)
 

@@ -1,25 +1,26 @@
 package app.shosetsu.android.ui.reader.types.model
 
 import android.os.Build
-import android.util.Log
 import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.widget.Button
 import android.widget.ProgressBar
-import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.view.setPadding
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.LifecycleObserver
-import app.shosetsu.android.common.ext.logID
+import app.shosetsu.android.common.ext.logD
+import app.shosetsu.android.common.ext.maxY
 import app.shosetsu.android.common.ext.percentageScrolled
-import app.shosetsu.android.ui.reader.types.base.TypedReaderViewHolder
+import app.shosetsu.android.ui.reader.types.base.ReaderChapterViewHolder
 import app.shosetsu.android.view.uimodels.model.reader.ReaderChapterUI
+import app.shosetsu.android.view.widget.TappingTextView
 import app.shosetsu.common.enums.ReadingStatus
-import com.github.doomsdayrs.apps.shosetsu.R
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.kodein
+import com.github.doomsdayrs.apps.shosetsu.databinding.ChapterReaderTextViewBinding
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
 
 /*
  * This file is part of shosetsu.
@@ -42,24 +43,25 @@ import org.kodein.di.android.kodein
  * shosetsu
  * 13 / 12 / 2019
  */
+@Deprecated("No longer supported, moving to WebView")
 class StringReader(
 	itemView: View
-) : TypedReaderViewHolder(itemView), KodeinAware, LifecycleObserver {
-	override val kodein: Kodein by kodein(itemView.context)
+) : ReaderChapterViewHolder(itemView), DIAware, LifecycleObserver {
+	override val di: DI by closestDI(itemView.context)
+	private val binding = ChapterReaderTextViewBinding.bind(itemView)
 
 	/**
 	 * Main way of reading in this view
 	 */
-	private val textView: TextView = itemView.findViewById(R.id.textView)
-	private val scrollView: NestedScrollView = itemView.findViewById(R.id.scrollView)
-
-	private val middleBox: View = itemView.findViewById(R.id.reader_middle_box)
-	private val progressBar: ProgressBar = itemView.findViewById(R.id.progressBar)
+	private val textView: TappingTextView = binding.textView
+	private val scrollView: NestedScrollView = binding.scrollView
+	private val middleBox: View = binding.readerMiddleBox
+	private val progressBar: ProgressBar = binding.progressBar
 
 	// These handle the error view
-	private val errorView: View = itemView.findViewById(R.id.error_view)
-	private val errorMessage: TextView = itemView.findViewById(R.id.error_message)
-	private val errorButton: Button = itemView.findViewById(R.id.error_button)
+	private val errorView: View = binding.errorView
+	private val errorMessage: AppCompatTextView = binding.errorMessage
+	private val errorButton: Button = binding.errorButton
 
 	private var unformattedText = ""
 
@@ -77,12 +79,12 @@ class StringReader(
 		}
 	}
 
-	override fun showProgress() {
+	override fun showLoadingProgress() {
 		middleBox.visibility = VISIBLE
 		progressBar.visibility = VISIBLE
 	}
 
-	override fun hideProgress() {
+	override fun hideLoadingProgress() {
 		middleBox.visibility = GONE
 		progressBar.visibility = GONE
 	}
@@ -101,23 +103,30 @@ class StringReader(
 	}
 
 	fun bind(
-		paragraphSpacing: Int = chapterReader.viewModel.defaultParaSpacing,
+		paragraphSpacing: Float = chapterReader.viewModel.defaultParaSpacing,
 		paragraphIndent: Int = chapterReader.viewModel.defaultIndentSize
 	) {
 
+		// Calculate changes to \n
 		val replaceSpacing = StringBuilder("\n")
-		for (x in 0 until paragraphSpacing)
+		for (x in 0 until paragraphSpacing.toInt())
 			replaceSpacing.append("\n")
 		for (x in 0 until paragraphIndent)
 			replaceSpacing.append("\t")
+
+		// Syncs textSize
 		syncTextSize()
+
+		// Set color
 		textView.setTextColor(chapterReader.viewModel.defaultForeground)
 		textView.setBackgroundColor(chapterReader.viewModel.defaultBackground)
+
+		// Set new text formatted
 		textView.text = unformattedText.replace("\n".toRegex(), replaceSpacing.toString())
 	}
 
-	override fun setData(data: String) {
-		unformattedText = data
+	override fun setData(data: ByteArray) {
+		unformattedText = data.decodeToString()
 		bind()
 	}
 
@@ -137,11 +146,14 @@ class StringReader(
 		bind()
 	}
 
-	override fun setProgress(progress: Int) {
-		scrollView.scrollTo(0, progress)
+	override fun setProgress(progress: Double) {
+		scrollView.scrollTo(0, (scrollView.maxY * (progress / 100)).toInt())
 	}
 
-	override fun getFocusTarget(): View = textView
+	override fun getFocusTarget(onFocus: () -> Unit) {
+//		textView.setOnClickListener { onFocus() }
+		textView.middleTappedListener = onFocus
+	}
 
 	override fun syncTextColor() {
 		textView.setTextColor(chapterReader.viewModel.defaultForeground)
@@ -156,19 +168,20 @@ class StringReader(
 	 */
 	private fun scrollHitBottom() {
 		val yPosition = scrollView.scrollY
-		if (scrollView.percentageScrolled() < 99) {
+		val percentage = scrollView.percentageScrolled()
+		if (percentage < 99) {
 			if (yPosition % 5 == 0) {
-				Log.i(logID(), "Scrolling")
+				logD("Percentage: $percentage")
 				// Mark as reading if on scroll
-				chapterReader.viewModel.markAsReadingOnScroll(chapter, yPosition)
+				chapterReader.viewModel.markAsReadingOnScroll(chapter, percentage.toDouble())
 			}
 		} else {
-			Log.i(logID(), "Hit the bottom")
 			// Hit bottom
 			chapterReader.viewModel.updateChapter(
-				chapter,
-				readingStatus = ReadingStatus.READ,
-				readingPosition = 0
+				chapter.copy(
+					readingStatus = ReadingStatus.READ,
+					readingPosition = 0.0
+				),
 			)
 		}
 	}
@@ -176,27 +189,42 @@ class StringReader(
 	override fun depleteScroll() {
 		val currentY = scrollView.scrollY
 
-		if (currentY > scrollSpeed)
-			scrollView.smoothScrollTo(0, currentY - scrollSpeed)
+		if (currentY > scrollStep)
+			scrollView.smoothScrollBy(0, -1 * scrollStep, scrollDuration)
+		else scrollView.smoothScrollTo(0, 0)
 	}
 
 	override fun bindView(item: ReaderChapterUI, payloads: List<Any>) {
+		super.bindView(item, payloads)
+		chapter = item
+		textView.bottomTappedListener = {
+			if (tapToScroll)
+				depleteScroll()
+		}
+		textView.topTappedListener = {
+			if (tapToScroll)
+				incrementScroll()
+		}
 	}
 
 	override fun unbindView(item: ReaderChapterUI) {
-		textView.setOnClickListener(null)
+		textView.topTappedListener = null
+		textView.middleTappedListener = null
+		textView.bottomTappedListener = null
+		textView.text = null
 	}
 
 	override fun incrementScroll() {
 		val currentY = scrollView.scrollY
 		val maxY = scrollView.getChildAt(0).height - scrollView.height
 
-		if (currentY < maxY - scrollSpeed)
-			scrollView.smoothScrollTo(0, currentY + scrollSpeed)
+		if (currentY < maxY - scrollStep)
+			scrollView.smoothScrollBy(0, scrollStep, scrollDuration)
 		else scrollView.smoothScrollTo(0, maxY)
 	}
 
 	companion object {
-		private const val scrollSpeed = 300
+		private const val scrollDuration = 750
+		private const val scrollStep = 500
 	}
 }

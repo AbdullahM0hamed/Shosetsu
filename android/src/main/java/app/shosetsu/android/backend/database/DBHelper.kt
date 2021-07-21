@@ -21,10 +21,11 @@ import app.shosetsu.common.domain.model.local.ChapterEntity
 import app.shosetsu.common.domain.model.local.NovelEntity
 import app.shosetsu.common.enums.ReadingStatus
 import app.shosetsu.lib.Novel
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.kodein
-import org.kodein.di.generic.instance
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
+import org.kodein.di.instance
+
 import java.io.IOException
 
 /*
@@ -50,9 +51,9 @@ import java.io.IOException
  */
 @Deprecated("SQL Database removed")
 class DBHelper(context: Context) :
-	SQLiteOpenHelper(context, "database.db", null, 10), KodeinAware {
-	override val kodein: Kodein by kodein(context)
-	private val novelDAO by kodein.instance<NovelsDao>()
+	SQLiteOpenHelper(context, "database.db", null, 10), DIAware {
+	override val di: DI by closestDI(context)
+	private val novelDAO by di.instance<NovelsDao>()
 	private val chapterDAO by instance<ChaptersDao>()
 
 	private enum class Columns(private val key: String) {
@@ -177,7 +178,7 @@ class DBHelper(context: Context) :
 					)
 				}
 			}
-				.map { (novelID, bookmarked, title, imageURL, description, genres, authors, tags, publishingStatus, artists, language, maxChapter) ->
+				.map { (novelID, bookmarked, title, imageURL, description, genres, authors, tags, publishingStatus, artists, language, _) ->
 					val novelIDF = novelIDS.find { it.novelID == novelID }!!
 
 					NovelEntity(
@@ -194,7 +195,7 @@ class DBHelper(context: Context) :
 						authors = authors.toList(),
 						artists = artists.toList(),
 						tags = tags.toList(),
-						status = publishingStatus
+						status = publishingStatus,
 					)
 				}
 
@@ -228,7 +229,7 @@ class DBHelper(context: Context) :
 					title = title,
 					releaseDate = date,
 					order = order,
-					readingPosition = yPosition,
+					readingPosition = yPosition.toDouble(),
 					readingStatus = readChapter,
 					bookmarked = bookmarked
 				)

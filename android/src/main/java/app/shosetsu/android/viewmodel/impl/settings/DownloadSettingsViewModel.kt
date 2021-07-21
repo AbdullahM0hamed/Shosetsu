@@ -1,15 +1,16 @@
 package app.shosetsu.android.viewmodel.impl.settings
 
+import androidx.work.WorkInfo
+import app.shosetsu.android.backend.workers.onetime.DownloadWorker
 import app.shosetsu.android.common.ext.launchIO
-import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.view.uimodels.settings.base.SettingsItemData
 import app.shosetsu.android.view.uimodels.settings.dsl.*
 import app.shosetsu.android.viewmodel.abstracted.settings.ADownloadSettingsViewModel
 import app.shosetsu.common.consts.settings.SettingKey.*
 import app.shosetsu.common.domain.repositories.base.ISettingsRepository
-import app.shosetsu.common.dto.HResult
-import app.shosetsu.common.dto.handle
+import app.shosetsu.common.dto.*
 import com.github.doomsdayrs.apps.shosetsu.R
+import kotlinx.coroutines.flow.*
 
 /*
  * This file is part of shosetsu.
@@ -34,8 +35,9 @@ import com.github.doomsdayrs.apps.shosetsu.R
  */
 class DownloadSettingsViewModel(
 	iSettingsRepository: ISettingsRepository,
-	private val reportExceptionUseCase: ReportExceptionUseCase
+	private val manager: DownloadWorker.Manager
 ) : ADownloadSettingsViewModel(iSettingsRepository) {
+
 	override suspend fun settings(): List<SettingsItemData> = listOf(
 		seekBarSettingData(6) {
 			title { "Download thread pool size" }
@@ -133,10 +135,40 @@ class DownloadSettingsViewModel(
 		switchSettingData(6) {
 			title { "Bookmarked novel on download" }
 			description { "If a novel is not bookmarked when a chapter is downloaded, this will" }
+		},
+		switchSettingData(7) {
+			titleRes = R.string.settings_download_notify_extension_install_title
+			descRes = R.string.settings_download_notify_extension_install_desc
+			checkSettingValue(NotifyExtensionDownload)
 		}
 	)
 
 	override fun reportError(error: HResult.Error, isSilent: Boolean) {
-		reportExceptionUseCase(error)
+	}
+
+	override var downloadWorkerSettingsChanged: Boolean = false
+
+	init {
+		launchIO {
+			var ran = false
+			settingsRepo.getBooleanFlow(DownloadOnlyWhenIdle)
+				.combine(settingsRepo.getBooleanFlow(DownloadOnLowStorage)) { _, _ -> }
+				.combine(settingsRepo.getBooleanFlow(DownloadOnLowBattery)) { _, _ -> }
+				.combine(settingsRepo.getBooleanFlow(DownloadOnMeteredConnection)) { _, _ -> }
+				.collect {
+					if (!ran) {
+						ran = true
+						return@collect
+					}
+
+					if (manager.count != 0 && manager.getWorkerState() == WorkInfo.State.ENQUEUED)
+						downloadWorkerSettingsChanged = true
+				}
+		}
+	}
+
+	override fun restartDownloadWorker() {
+		manager.stop()
+		manager.start()
 	}
 }

@@ -15,7 +15,7 @@ package app.shosetsu.common.domain.repositories.base
  * You should have received a copy of the GNU General Public License
  * along with shosetsu.  If not, see <https://www.gnu.org/licenses/>.
  */
-import app.shosetsu.common.domain.model.local.BookmarkedNovelEntity
+import app.shosetsu.common.domain.model.local.LibraryNovelEntity
 import app.shosetsu.common.domain.model.local.NovelEntity
 import app.shosetsu.common.domain.model.local.StrippedBookmarkedNovelEntity
 import app.shosetsu.common.domain.model.local.StrippedNovelEntity
@@ -44,7 +44,7 @@ interface INovelsRepository {
 	 *
 	 * [HResult.Loading] Initial Value
 	 */
-	fun loadBookmarkedNovelFlow(): Flow<HResult<List<BookmarkedNovelEntity>>>
+	fun loadLibraryNovelEntities(): Flow<HResult<List<LibraryNovelEntity>>>
 
 	/**
 	 * Loads all [NovelEntity]s that are bookmarked
@@ -184,7 +184,7 @@ interface INovelsRepository {
 	 *
 	 * [HResult.Loading] never
 	 */
-	suspend fun updateBookmarkedNovelData(list: List<BookmarkedNovelEntity>): HResult<*>
+	suspend fun updateLibraryNovelEntity(list: List<LibraryNovelEntity>): HResult<*>
 
 	/**
 	 * Retrieves NovelInfo from it's source
@@ -199,7 +199,7 @@ interface INovelsRepository {
 	 * [HResult.Loading] never
 	 */
 	suspend fun retrieveNovelInfo(
-		formatter: IExtension,
+		extension: IExtension,
 		novelEntity: NovelEntity,
 		loadChapters: Boolean,
 	): HResult<Novel.Info>
@@ -210,4 +210,41 @@ interface INovelsRepository {
 	 *  This should cascade and delete all their chapters as well
 	 */
 	suspend fun clearUnBookmarkedNovels(): HResult<*>
+
+
+	/**
+	 * Queries the [IExtension] for a search result
+	 *
+	 * @return
+	 * [HResult.Success] TODO RETURN DESCRIPTION
+	 *
+	 * [HResult.Error] TODO RETURN DESCRIPTION
+	 *
+	 * [HResult.Empty] TODO RETURN DESCRIPTION
+	 *
+	 * [HResult.Loading] never
+	 */
+	suspend fun getCatalogueSearch(
+		ext: IExtension,
+		query: String,
+		data: Map<Int, Any>
+	): HResult<List<Novel.Listing>>
+
+	/**
+	 * Loads catalogue data of an [IExtension]
+	 *
+	 * @return
+	 * [HResult.Success] Data successfully loaded
+	 *
+	 * [HResult.Error] Error loading data
+	 *
+	 * [HResult.Empty] ?
+	 *
+	 * [HResult.Loading] never
+	 */
+	suspend fun getCatalogueData(
+		ext: IExtension,
+		listing: Int,
+		data: Map<Int, Any>,
+	): HResult<List<Novel.Listing>>
 }

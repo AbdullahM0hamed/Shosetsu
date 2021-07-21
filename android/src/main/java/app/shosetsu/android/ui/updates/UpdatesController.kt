@@ -19,13 +19,15 @@ package app.shosetsu.android.ui.updates
 
 import android.view.View
 import app.shosetsu.android.common.ext.*
+import app.shosetsu.android.view.controller.FastAdapterRefreshableRecyclerController
 import app.shosetsu.android.view.controller.base.CollapsedToolBarController
-import app.shosetsu.android.view.controller.FastAdapterRecyclerController.BasicFastAdapterRecyclerController
 import app.shosetsu.android.view.decoration.StickyHeaderDecor
 import app.shosetsu.android.view.uimodels.model.UpdateUI
-import app.shosetsu.android.viewmodel.abstracted.IUpdatesViewModel
+import app.shosetsu.android.view.widget.EmptyDataView
+import app.shosetsu.android.viewmodel.abstracted.AUpdatesViewModel
 import app.shosetsu.common.dto.HResult
 import com.github.doomsdayrs.apps.shosetsu.R
+import com.mikepenz.fastadapter.FastAdapter
 import org.joda.time.DateTime
 
 /**
@@ -34,45 +36,49 @@ import org.joda.time.DateTime
  *
  * @author github.com/doomsdayrs
  */
-class UpdatesController : BasicFastAdapterRecyclerController<UpdateUI>(),
+class UpdatesController : FastAdapterRefreshableRecyclerController<UpdateUI>(),
 	CollapsedToolBarController {
-	val viewModel: IUpdatesViewModel by viewModel()
-	override val viewTitleRes: Int = R.string.updates
-	override fun onViewCreated(view: View) {}
 
+	val viewModel: AUpdatesViewModel by viewModel()
+
+	override val viewTitleRes: Int = R.string.updates
 
 	override fun setupRecyclerView() {
 		super.setupRecyclerView()
-		recyclerView.setPadding(0, 0, 0, 8)
-		recyclerView.addItemDecoration(StickyHeaderDecor(recyclerView.context, UpdateCallback()))
+		recyclerView.apply {
+			setPadding(0, 0, 0, 8)
+			addItemDecoration(StickyHeaderDecor(recyclerView.context, UpdateCallback()))
+		}
 	}
 
-	override fun setupFastAdapter() {
-		fastAdapter.setOnClickListener { _, _, (chapterID, novelID), _ ->
+	override fun FastAdapter<UpdateUI>.setupFastAdapter() {
+		setOnClickListener { _, _, (chapterID, novelID), _ ->
 			activity?.openChapter(chapterID, novelID)
 			true
 		}
+	}
+
+	override fun onViewCreated(view: View) {
+		super.onViewCreated(view)
 		startObservation()
-	}
-
-	private fun startObservation() {
-		viewModel.liveData.observe(this) {
-			handleRecyclerUpdate(it)
-		}
-	}
-
-	override fun updateUI(newList: List<UpdateUI>) {
-		// Launches the sorting task async, then it passes the result to the UI
-		launchIO { newList.sortedByDescending { it.time }.let { launchUI { super.updateUI(it) } } }
 	}
 
 	override fun showEmpty() {
 		super.showEmpty()
-		binding.emptyDataView.show("No updates yet! Maybe check again?")
+		binding.emptyDataView.show(
+			R.string.empty_updates_message,
+			EmptyDataView.Action(R.string.empty_updates_refresh_action) {
+				onRefresh()
+			}
+		)
 	}
 
+	/**
+	 * Start observing [AUpdatesViewModel] for changes
+	 */
+	private fun startObservation() = viewModel.liveData.observeRecyclerUpdates()
+
 	override fun handleErrorResult(e: HResult.Error) {
-		super.handleErrorResult(e)
 		viewModel.reportError(e)
 	}
 
@@ -99,7 +105,13 @@ class UpdatesController : BasicFastAdapterRecyclerController<UpdateUI>(),
 					else -> "${dateTime.dayOfMonth}/${dateTime.monthOfYear}/${dateTime.year}"
 				}
 			}
-			return "No Bogga"
+			return "Unknown"
 		}
+	}
+
+	override fun onRefresh() {
+		if (viewModel.isOnline())
+			viewModel.startUpdateManager()
+		else displayOfflineSnackBar(R.string.generic_error_cannot_update_library_offline)
 	}
 }

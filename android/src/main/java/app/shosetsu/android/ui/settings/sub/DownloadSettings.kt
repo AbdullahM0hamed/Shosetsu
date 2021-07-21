@@ -5,15 +5,14 @@ import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import app.shosetsu.android.common.consts.ActivityRequestCodes.REQUEST_CODE_DIRECTORY
-import app.shosetsu.android.common.ext.context
-import app.shosetsu.android.common.ext.toast
-import app.shosetsu.android.common.ext.viewModel
+import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.ui.settings.SettingsSubController
 import app.shosetsu.android.view.uimodels.settings.TextSettingData
 import app.shosetsu.android.view.uimodels.settings.base.SettingsItemData
 import app.shosetsu.android.view.uimodels.settings.dsl.onClicked
 import app.shosetsu.android.viewmodel.abstracted.settings.ADownloadSettingsViewModel
 import com.github.doomsdayrs.apps.shosetsu.R
+import com.google.android.material.snackbar.Snackbar
 
 /*
  * This file is part of Shosetsu.
@@ -60,6 +59,27 @@ class DownloadSettings : SettingsSubController() {
 		i.addCategory(Intent.CATEGORY_DEFAULT)
 		activity?.startActivityForResult(Intent.createChooser(i, "Choose directory"), 42)
 	}
+
+	override fun onDestroy() {
+		super.onDestroy()
+		launchUI {
+			if (!viewModel.downloadWorkerSettingsChanged) return@launchUI
+
+			makeSnackBar(
+				getString(
+					R.string.controller_settings_restart_worker,
+					getString(R.string.worker_title_download)
+				),
+				Snackbar.LENGTH_LONG
+			)?.setAction(R.string.restart) {
+				viewModel.restartDownloadWorker()
+			}?.setOnDismissed { _, _ ->
+				viewModel.downloadWorkerSettingsChanged = false
+			}?.show()
+		}
+
+	}
+
 
 	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 		super.onActivityResult(requestCode, resultCode, data)

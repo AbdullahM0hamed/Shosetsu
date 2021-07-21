@@ -20,22 +20,22 @@
     </RelativeLayout>
 
     <com.google.android.material.appbar.AppBarLayout
-        android:background="@android:color/transparent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             style="@style/AppTheme.Widget.AppBarLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="?attr/actionBarSize"
             android:clickable="true"
             android:focusable="true"
             app:layout_scrollFlags="scroll|enterAlways|snap"
             app:menu="@menu/toolbar_reader" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/progress_percentage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -43,6 +43,7 @@
         android:textIsSelectable="false"
         tools:text="20%" />
 
-    <include layout="@layout/chapter_reader_bottom"
-        android:id="@+id/chapter_reader_bottom"/>
+    <include
+        android:id="@+id/chapter_reader_bottom"
+        layout="@layout/chapter_reader_bottom" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

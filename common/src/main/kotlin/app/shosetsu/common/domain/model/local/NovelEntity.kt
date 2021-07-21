@@ -43,9 +43,6 @@ data class NovelEntity(
 	/** Says if the data is loaded or now, if it is not it needs to be loaded */
 	var loaded: Boolean = false,
 
-	/** What kind of reader is this novel using */
-	var readerType: Int = -1,
-
 	/** The title of the novel */
 	var title: String,
 

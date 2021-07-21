@@ -2,10 +2,14 @@
 <resources>
     <dimen name="fab_size">56dp</dimen>
     <dimen name="fab_margin">56dp</dimen>
+    <!-- Removes the default blue outline -->
+    <dimen name="fab_borderWidth">0dp</dimen>
 
     <dimen name="app_bar_layout_elevation">4dp</dimen>
 
     <dimen name="sub_text_size">12sp</dimen>
 
     <dimen name="header_height">35dp</dimen>
+
+    <dimen name="reader_bottom_bar_height">64dp</dimen>
 </resources>

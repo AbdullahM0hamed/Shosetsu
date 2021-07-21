@@ -4,12 +4,11 @@ import android.view.View
 import androidx.core.view.isVisible
 import app.shosetsu.android.common.consts.SELECTED_STROKE_WIDTH
 import app.shosetsu.android.common.ext.logD
-import app.shosetsu.android.common.ext.toast
 import app.shosetsu.android.view.uimodels.base.BaseRecyclerItem
 import app.shosetsu.android.view.uimodels.base.GetImageURL
 import app.shosetsu.android.view.uimodels.base.GetTitle
 import app.shosetsu.android.view.viewholders.TitleImageFViewHolder
-import app.shosetsu.common.domain.model.local.BookmarkedNovelEntity
+import app.shosetsu.common.domain.model.local.LibraryNovelEntity
 import app.shosetsu.common.dto.Convertible
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.google.android.material.card.MaterialCardView
@@ -39,7 +38,7 @@ import com.google.android.material.chip.Chip
  * For displaying novels in library (UI) owo
  */
 abstract class ABookmarkedNovelUI
-	: BaseRecyclerItem<ABookmarkedNovelUI.ViewHolder>(), Convertible<BookmarkedNovelEntity>,
+	: BaseRecyclerItem<ABookmarkedNovelUI.ViewHolder>(), Convertible<LibraryNovelEntity>,
 	GetImageURL, GetTitle {
 
 	/** ID of the novel*/
@@ -70,8 +69,8 @@ abstract class ABookmarkedNovelUI
 
 	override fun getDataTitle(): String = title
 
-	override fun convertTo(): BookmarkedNovelEntity =
-		BookmarkedNovelEntity(
+	override fun convertTo(): LibraryNovelEntity =
+		LibraryNovelEntity(
 			id,
 			title,
 			imageURL,
@@ -86,14 +85,13 @@ abstract class ABookmarkedNovelUI
 	override fun getViewHolder(v: View): ViewHolder = ViewHolder(v)
 
 	class ViewHolder(itemView: View) : TitleImageFViewHolder<ABookmarkedNovelUI>(itemView) {
-		private val materialCardView: MaterialCardView = itemView.findViewById(R.id.novel_item_card)
-		private val chip: Chip = itemView.findViewById(R.id.left_to_read_chip)
+		val materialCardView: MaterialCardView = itemView.findViewById(R.id.novel_item_card)
+		val chip: Chip = itemView.findViewById(R.id.left_to_read_chip)
 
 		override fun bindView(item: ABookmarkedNovelUI, payloads: List<Any>) {
 			super.bindView(item, payloads)
 			setUnreadCount(this, item.unread)
 			materialCardView.strokeWidth = if (item.isSelected) SELECTED_STROKE_WIDTH else 0
-			chip.setOnClickListener { it.context.toast(it.context.getString(R.string.chapters_unread_label) + chip.text) }
 		}
 
 		override fun unbindView(item: ABookmarkedNovelUI) {

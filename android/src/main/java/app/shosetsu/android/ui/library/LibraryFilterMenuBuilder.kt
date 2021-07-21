@@ -3,7 +3,7 @@ package app.shosetsu.android.ui.library
 import android.content.Context
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.view.isVisible
 import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -11,8 +11,8 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager.widget.PagerAdapter
 import app.shosetsu.android.view.uimodels.base.BaseRecyclerItem
 import app.shosetsu.android.view.uimodels.base.BindViewHolder
-import app.shosetsu.android.view.widget.TriStateButton.State.*
-import app.shosetsu.android.viewmodel.abstracted.ILibraryViewModel
+import app.shosetsu.android.view.widget.TriState.State.*
+import app.shosetsu.android.viewmodel.abstracted.ALibraryViewModel
 import app.shosetsu.common.enums.InclusionState
 import app.shosetsu.common.enums.InclusionState.EXCLUDE
 import app.shosetsu.common.enums.InclusionState.INCLUDE
@@ -53,7 +53,7 @@ import androidx.recyclerview.widget.LinearLayoutManager.VERTICAL as LLM_VERTICAL
  */
 class LibraryFilterMenuBuilder constructor(
 	private val controller: LibraryController,
-	private val viewModel: ILibraryViewModel
+	private val viewModel: ALibraryViewModel
 ) {
 	@Suppress("ProtectedInFinal")
 	protected val layoutInflater = controller.activity!!.layoutInflater
@@ -70,7 +70,7 @@ class LibraryFilterMenuBuilder constructor(
 	/** Creates the first menu */
 	private inner class Menu0 {
 		inner class ListModel(
-			val textView: TextView,
+			val textView: AppCompatTextView,
 			val recyclerView: RecyclerView,
 			val liveData: LiveData<List<String>>,
 			val retrieveState: () -> HashMap<String, InclusionState>,
@@ -106,7 +106,7 @@ class LibraryFilterMenuBuilder constructor(
 									EXCLUDE -> UNCHECKED
 								}
 							} ?: IGNORED
-							addOnStateChangeListener {
+							onStateChangeListeners.add {
 								when (it) {
 									CHECKED -> setState(item.filterKeyName, INCLUDE)
 									UNCHECKED -> setState(item.filterKeyName, EXCLUDE)
@@ -118,7 +118,7 @@ class LibraryFilterMenuBuilder constructor(
 
 					override fun TriStateCheckboxBinding.unbindView(item: FilterModel) {
 						this.root.apply {
-							clearOnStateChangeListener()
+							onStateChangeListeners.clear()
 							clearOnClickListeners()
 							setText(null)
 							state = IGNORED
@@ -151,7 +151,7 @@ class LibraryFilterMenuBuilder constructor(
 					EXCLUDE -> UNCHECKED
 					null -> IGNORED
 				}
-				addOnStateChangeListener {
+				onStateChangeListeners.add {
 					when (it) {
 						IGNORED -> viewModel.setUnreadFilter(null)
 						CHECKED -> viewModel.setUnreadFilter(INCLUDE)

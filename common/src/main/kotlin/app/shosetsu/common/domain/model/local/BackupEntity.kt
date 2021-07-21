@@ -1,5 +1,9 @@
 package app.shosetsu.common.domain.model.local
 
+import app.shosetsu.common.consts.BACKUP_FILE_EXTENSION
+import java.text.SimpleDateFormat
+import java.util.*
+
 /*
  * This file is part of Shosetsu.
  *
@@ -23,5 +27,22 @@ package app.shosetsu.common.domain.model.local
  * @param content Content of the file
  */
 data class BackupEntity(
-	val content: String
-)
+	val content: ByteArray
+) {
+
+	val creationDate: String = SimpleDateFormat("yyyy-MM-dd-hh-mm-ss", Locale.ROOT).format(Date())
+	val fileName: String by lazy { "shosetsu-backup-${creationDate}.$BACKUP_FILE_EXTENSION" }
+
+	override fun equals(other: Any?): Boolean {
+		if (this === other) return true
+		if (other !is BackupEntity) return false
+
+		if (!content.contentEquals(other.content)) return false
+
+		return true
+	}
+
+	override fun hashCode(): Int {
+		return content.contentHashCode()
+	}
+}

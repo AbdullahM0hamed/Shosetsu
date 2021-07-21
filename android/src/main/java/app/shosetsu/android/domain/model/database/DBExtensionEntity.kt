@@ -7,6 +7,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import app.shosetsu.common.domain.model.local.ExtensionEntity
 import app.shosetsu.common.dto.Convertible
+import app.shosetsu.lib.ExtensionType
+import app.shosetsu.lib.Novel
 import app.shosetsu.lib.Version
 
 /*
@@ -37,7 +39,7 @@ import app.shosetsu.lib.Version
 			entity = DBRepositoryEntity::class,
 			parentColumns = ["id"],
 			childColumns = ["repoID"],
-			onDelete = ForeignKey.CASCADE
+			onDelete = ForeignKey.NO_ACTION
 		)
 	],
 	indices = [Index("repoID")]
@@ -74,20 +76,29 @@ data class DBExtensionEntity(
 	/** Version in repository*/
 	var repositoryVersion: Version = Version(0, 0, 0),
 
+	/**
+	 * The reader type of this extension
+	 */
+	var chapterType: Novel.ChapterType,
+
 	/** MD5 to check against */
 	var md5: String = "",
+
+	val type: ExtensionType
 ) : Convertible<ExtensionEntity> {
 	override fun convertTo(): ExtensionEntity = ExtensionEntity(
-		id,
-		repoID,
-		name,
-		fileName,
-		imageURL,
-		lang,
-		enabled,
-		installed,
-		installedVersion,
-		repositoryVersion,
-		md5
+		id = id,
+		repoID = repoID,
+		name = name,
+		fileName = fileName,
+		imageURL = imageURL,
+		lang = lang,
+		enabled = enabled,
+		installed = installed,
+		installedVersion = installedVersion,
+		repositoryVersion = repositoryVersion,
+		chapterType = chapterType,
+		md5 = md5,
+		type = type
 	)
 }

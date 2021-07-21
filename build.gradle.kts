@@ -7,17 +7,17 @@ import java.io.IOException
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
+	val kotlinVersion: String by extra("1.5.10")
 
 	repositories {
 		google()
-		jcenter()
+		mavenCentral()
 	}
 
 	dependencies {
-		classpath("com.android.tools.build:gradle:4.1.2")
-		classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.21")
-		classpath(kotlin("gradle-plugin", version = "1.4.21"))
-		classpath(kotlin("serialization", version = "1.4.21"))
+		classpath("com.android.tools.build:gradle:4.2.2")
+		classpath(kotlin("gradle-plugin", version = kotlinVersion))
+		classpath(kotlin("serialization", version = kotlinVersion))
 		// NOTE: Do not place your application dependencies here; they belong
 		// in the individual module build.gradle files
 	}
@@ -26,7 +26,7 @@ buildscript {
 allprojects {
 	repositories {
 		google()
-		jcenter()
+		mavenCentral()
 		maven("https://jitpack.io")
 	}
 }
@@ -40,20 +40,25 @@ tasks.register<WriteDebugUpdate>("androidDebugUpdateXML")
 
 /** Creates an update XML to be used by the application */
 open class WriteDebugUpdate : DefaultTask() {
-	@Throws(IOException::class)
-	private fun String.execute(): Process = Runtime.getRuntime().exec(this)
+	companion object {
+		@Throws(IOException::class)
+		private fun String.execute(): Process = Runtime.getRuntime().exec(this)
 
-	@Throws(IOException::class)
-	private fun Process.getText(): String =
-		IOGroovyMethods.getText(BufferedReader(java.io.InputStreamReader(inputStream))).also {
-			closeStreams(this)
-		}
+		@Throws(IOException::class)
+		private fun Process.getText(): String =
+			IOGroovyMethods.getText(BufferedReader(java.io.InputStreamReader(inputStream))).also {
+				closeStreams(this)
+			}
 
-	@Throws(IOException::class)
-	private fun getCommitCount(): String = "git rev-list --count HEAD".execute().getText().trim()
+		@Throws(IOException::class)
+		private fun getCommitCount(): String =
+			"git rev-list --count HEAD".execute().getText().trim()
 
-	@Throws(IOException::class)
-	private fun getLatestCommitMsg(): String = "git log -1 --pretty=%B".execute().getText().trim()
+		@Throws(IOException::class)
+		private fun getLatestCommitMsg(): String =
+			"git log -1 --pretty=%B".execute().getText().trim()
+	}
+
 
 	/** Task of this task */
 	@Throws(IOException::class)

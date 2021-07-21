@@ -1,13 +1,15 @@
 package app.shosetsu.android.domain.usecases.get
 
 import app.shosetsu.android.view.uimodels.model.reader.ReaderChapterUI
+import app.shosetsu.common.consts.settings.SettingKey.ReaderStringToHtml
 import app.shosetsu.common.domain.repositories.base.IChaptersRepository
-import app.shosetsu.common.dto.HResult
-import app.shosetsu.common.dto.loading
-import app.shosetsu.common.dto.mapLatestResult
-import app.shosetsu.common.dto.successResult
-import app.shosetsu.lib.Novel
+import app.shosetsu.common.domain.repositories.base.IExtensionsRepository
+import app.shosetsu.common.domain.repositories.base.INovelsRepository
+import app.shosetsu.common.domain.repositories.base.ISettingsRepository
+import app.shosetsu.common.dto.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 
@@ -33,23 +35,39 @@ import kotlinx.coroutines.flow.flow
  * 07 / 06 / 2020
  */
 class GetReaderChaptersUseCase(
-	private val iChaptersRepository: IChaptersRepository,
+	private val chapterRepo: IChaptersRepository,
+	private val settingsRepo: ISettingsRepository,
+	private val extRepo: IExtensionsRepository,
+	private val novelRepo: INovelsRepository
 ) {
+	@ExperimentalCoroutinesApi
 	operator fun invoke(novelID: Int): Flow<HResult<List<ReaderChapterUI>>> =
 		flow {
 			emit(loading())
-			emitAll(iChaptersRepository.getReaderChaptersFlow(novelID).mapLatestResult {
-				successResult(it.map { (id, url, title, readingPosition, readingStatus, bookmarked) ->
-					ReaderChapterUI(
-						id,
-						url,
-						title,
-						readingPosition,
-						readingStatus,
-						bookmarked,
-						Novel.ChapterType.STRING
-					)
-				})
-			})
+			emitAll(chapterRepo.getReaderChaptersFlow(novelID)
+				.combine(settingsRepo.getBooleanFlow(ReaderStringToHtml)) { list, convertToHtml ->
+					list.transformToSuccess { it to convertToHtml }
+				}.combine(novelRepo.getNovelFlow(novelID)) { result, novelResult ->
+					result.transform { pair -> novelResult.transformToSuccess { pair to it } }
+				}.mapLatestResult { (pair, novel) ->
+					pair.let { (list, convertToHtml) ->
+						extRepo.getExtensionEntity(novel.extensionID)
+							.transform { novelEntity ->
+								successResult(list.map { (id, url, title, readingPosition, readingStatus, bookmarked) ->
+									ReaderChapterUI(
+										id,
+										url,
+										title,
+										readingPosition,
+										readingStatus,
+										bookmarked,
+										novelEntity.chapterType,
+										convertToHtml
+									)
+								})
+							}
+					}
+				}
+			)
 		}
 }

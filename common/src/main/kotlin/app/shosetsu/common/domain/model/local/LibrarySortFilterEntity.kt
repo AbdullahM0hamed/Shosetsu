@@ -1,6 +1,8 @@
 package app.shosetsu.common.domain.model.local
 
+import app.shosetsu.common.enums.InclusionState
 import app.shosetsu.common.enums.NovelSortType
+import kotlinx.serialization.Serializable
 
 /*
  * This file is part of Shosetsu.
@@ -22,7 +24,14 @@ import app.shosetsu.common.enums.NovelSortType
 /**
  * 03 / 01 / 2021
  */
+@Serializable
 data class LibrarySortFilterEntity(
-	val sortType: NovelSortType,
-	val reversedSort: Boolean
+	var sortType: NovelSortType = NovelSortType.BY_TITLE,
+	var reversedSort: Boolean = false,
+	var unreadInclusion: InclusionState? = null,
+
+	var genreFilter: Map<String, InclusionState> = mapOf(),
+	var authorFilter: Map<String, InclusionState> = mapOf(),
+	var artistFilter: Map<String, InclusionState> = mapOf(),
+	var tagFilter: Map<String, InclusionState> = mapOf(),
 )

@@ -1,6 +1,7 @@
 package app.shosetsu.android.view.uimodels.settings
 
 import android.view.View
+import androidx.core.view.isVisible
 import app.shosetsu.android.view.uimodels.settings.base.TextRequiringSettingData
 import com.github.doomsdayrs.apps.shosetsu.databinding.SettingsItemBinding
 
@@ -25,7 +26,7 @@ import com.github.doomsdayrs.apps.shosetsu.databinding.SettingsItemBinding
  * shosetsu
  * 25 / 06 / 2020
  */
-class ButtonSettingData(id: Int) : TextRequiringSettingData(id) {
+open class ButtonSettingData(id: Int) : TextRequiringSettingData(id) {
 	var buttonOnClickListener: (View) -> Unit = {}
 
 	override fun bindBinding(holder: SettingsItemBinding, payloads: List<Any>) {
@@ -35,7 +36,7 @@ class ButtonSettingData(id: Int) : TextRequiringSettingData(id) {
 				button.setText(textID)
 			else
 				button.text = textText
-			button.visibility = View.VISIBLE
+			button.isVisible = true
 			button.setOnClickListener(buttonOnClickListener)
 		}
 	}
@@ -45,6 +46,7 @@ class ButtonSettingData(id: Int) : TextRequiringSettingData(id) {
 		with(holder) {
 			button.text = null
 			button.setOnClickListener(null)
+			button.isVisible = false
 		}
 	}
 }

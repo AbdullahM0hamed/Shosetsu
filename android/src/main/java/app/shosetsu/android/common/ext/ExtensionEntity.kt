@@ -36,5 +36,7 @@ fun ExtensionEntity.toDB(): DBExtensionEntity = DBExtensionEntity(
 	installed,
 	installedVersion,
 	repositoryVersion,
-	md5
+	chapterType,
+	md5,
+	type
 )

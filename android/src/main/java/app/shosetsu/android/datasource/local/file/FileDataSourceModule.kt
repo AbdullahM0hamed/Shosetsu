@@ -1,12 +1,13 @@
 package app.shosetsu.android.datasource.local.file
 
 import app.shosetsu.android.datasource.local.file.base.IFileCachedAppUpdateDataSource
+import app.shosetsu.android.datasource.local.file.base.IFileCrashDataSource
 import app.shosetsu.android.datasource.local.file.impl.*
 import app.shosetsu.common.datasource.file.base.*
-import org.kodein.di.Kodein
-import org.kodein.di.generic.bind
-import org.kodein.di.generic.instance
-import org.kodein.di.generic.singleton
+import org.kodein.di.DI
+import org.kodein.di.bind
+import org.kodein.di.instance
+import org.kodein.di.singleton
 
 /*
  * This file is part of shosetsu.
@@ -29,7 +30,7 @@ import org.kodein.di.generic.singleton
  * shosetsu
  * 12 / 05 / 2020
  */
-val fileDataSourceModule: Kodein.Module = Kodein.Module("file_data_source") {
+val fileDataSourceModule: DI.Module = DI.Module("file_data_source") {
 	bind<IFileExtensionDataSource>() with singleton {
 		FileExtensionDataSource(instance())
 	}
@@ -57,4 +58,5 @@ val fileDataSourceModule: Kodein.Module = Kodein.Module("file_data_source") {
 		)
 	}
 	bind<IFileBackupDataSource>() with singleton { FileBackupDataSource(instance()) }
+	bind<IFileCrashDataSource>() with singleton { FileCrashDataSource(instance()) }
 }

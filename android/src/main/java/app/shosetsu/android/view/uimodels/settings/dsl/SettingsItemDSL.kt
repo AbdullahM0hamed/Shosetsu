@@ -32,14 +32,6 @@ annotation class SettingsItemDSL
 
 // - Builders
 
-
-@SettingsItemDSL
-inline fun checkBoxSettingData(
-	id: Int,
-	action: CheckBoxSettingData.() -> Unit,
-): SettingsItemData = CheckBoxSettingData(id).also(action)
-
-
 @SettingsItemDSL
 inline fun switchSettingData(
 	id: Int,
@@ -55,21 +47,28 @@ inline fun textSettingData(
 // - Functions
 
 @SettingsItemDSL
+@Deprecated("Use propery accessor")
 inline fun SettingsItemData.title(value: SettingsItemData.() -> Any): Unit =
 	value().let {
 		when (it) {
 			is String -> titleText = it
-			is Int -> titleID = it
+			is Int -> titleRes = it
 			else -> titleText = it.toString()
 		}
 	}
+
+@SettingsItemDSL
+fun SettingsItemData.boldTitle() {
+	isBoldTitle = true
+}
+
 
 @SettingsItemDSL
 inline fun SettingsItemData.description(value: SettingsItemData.() -> Any): Unit =
 	value().let {
 		when (it) {
 			is String -> descText = it
-			is Int -> descID = it
+			is Int -> descRes = it
 			else -> titleText = it.toString()
 		}
 	}

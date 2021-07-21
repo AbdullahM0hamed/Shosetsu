@@ -1,41 +1,42 @@
 package app.shosetsu.android.backend.workers.onetime
 
-import android.app.Notification
-import android.app.NotificationManager
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES
 import android.util.Log
-import androidx.core.content.getSystemService
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.*
 import androidx.work.ExistingWorkPolicy.REPLACE
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
 import app.shosetsu.android.backend.workers.CoroutineWorkerManager
+import app.shosetsu.android.backend.workers.NotificationCapable
 import app.shosetsu.android.common.consts.LogConstants
+import app.shosetsu.android.common.consts.LogConstants.SERVICE_EXECUTE
 import app.shosetsu.android.common.consts.Notifications.CHANNEL_UPDATE
 import app.shosetsu.android.common.consts.Notifications.ID_CHAPTER_UPDATE
 import app.shosetsu.android.common.consts.WorkerTags.UPDATE_WORK_ID
-import app.shosetsu.android.common.ext.launchIO
-import app.shosetsu.android.common.ext.logI
-import app.shosetsu.android.common.ext.logID
-import app.shosetsu.android.domain.usecases.StartDownloadWorkerUseCase
-import app.shosetsu.android.domain.usecases.get.GetNovelUseCase
-import app.shosetsu.android.domain.usecases.toast.ToastErrorUseCase
+import app.shosetsu.android.common.ext.*
+import app.shosetsu.android.domain.usecases.StartDownloadWorkerAfterUpdateUseCase
+import app.shosetsu.android.domain.usecases.get.GetRemoteNovelUseCase
 import app.shosetsu.common.consts.settings.SettingKey.*
+import app.shosetsu.common.domain.model.local.ChapterEntity
 import app.shosetsu.common.domain.model.local.NovelEntity
 import app.shosetsu.common.domain.repositories.base.INovelsRepository
 import app.shosetsu.common.domain.repositories.base.ISettingsRepository
 import app.shosetsu.common.domain.repositories.base.getBooleanOrDefault
 import app.shosetsu.common.dto.handle
-import app.shosetsu.common.dto.successResult
-import app.shosetsu.common.dto.transform
+import app.shosetsu.common.dto.transformToSuccess
 import app.shosetsu.lib.Novel
 import com.github.doomsdayrs.apps.shosetsu.R
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.closestKodein
-import org.kodein.di.generic.instance
+import com.squareup.picasso.Picasso
+import kotlinx.coroutines.delay
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
+import org.kodein.di.instance
 
 /*
  * This file is part of shosetsu.
@@ -65,26 +66,26 @@ import org.kodein.di.generic.instance
 class NovelUpdateWorker(
 	appContext: Context,
 	params: WorkerParameters,
-) : CoroutineWorker(appContext, params), KodeinAware {
+) : CoroutineWorker(appContext, params), DIAware, NotificationCapable {
+	override val notifyContext: Context
+		get() = applicationContext
 
-	private val notificationManager by lazy { appContext.getSystemService<NotificationManager>()!! }
-	private val progressNotification by lazy {
-		if (SDK_INT >= VERSION_CODES.O) {
-			Notification.Builder(appContext, CHANNEL_UPDATE)
-		} else {
-			// Suppressed due to lower API
-			@Suppress("DEPRECATION")
-			Notification.Builder(appContext)
-		}
+	override val defaultNotificationID: Int = ID_CHAPTER_UPDATE
+
+	override val notificationManager: NotificationManagerCompat by notificationManager()
+	override val baseNotificationBuilder: NotificationCompat.Builder
+		get() = notificationBuilder(applicationContext, CHANNEL_UPDATE)
 			.setSmallIcon(R.drawable.refresh)
+			.setSubText(applicationContext.getString(R.string.update_novel))
 			.setContentText("Update in progress")
 			.setOnlyAlertOnce(true)
-	}
-	override val kodein: Kodein by closestKodein(appContext)
+
+
+	override val di: DI by closestDI(appContext)
+
 	private val iNovelsRepository: INovelsRepository by instance()
-	private val loadNovelUseCase: GetNovelUseCase by instance()
-	private val toastErrorUseCase: ToastErrorUseCase by instance()
-	private val startDownloadWorker: StartDownloadWorkerUseCase by instance()
+	private val loadRemoteNovelUseCase: GetRemoteNovelUseCase by instance()
+	private val startDownloadWorker: StartDownloadWorkerAfterUpdateUseCase by instance()
 	private val iSettingsRepository: ISettingsRepository by instance()
 
 	private suspend fun onlyUpdateOngoing(): Boolean =
@@ -93,20 +94,34 @@ class NovelUpdateWorker(
 	private suspend fun downloadOnUpdate(): Boolean =
 		iSettingsRepository.getBooleanOrDefault(IsDownloadOnUpdate)
 
-	override suspend fun doWork(): Result {
-		logI(LogConstants.SERVICE_EXECUTE)
-		val pr = progressNotification
-		pr.setContentTitle(applicationContext.getString(R.string.update))
-		pr.setOngoing(true)
-		notificationManager.notify(ID_CHAPTER_UPDATE, pr.build())
+	private suspend fun notificationStyle(): Boolean =
+		iSettingsRepository.getBooleanOrDefault(UpdateNotificationStyle)
 
+	private suspend fun showProgress(): Boolean =
+		iSettingsRepository.getBooleanOrDefault(NovelUpdateShowProgress)
+
+	private suspend fun classicFinale(): Boolean =
+		iSettingsRepository.getBooleanOrDefault(NovelUpdateClassicFinish)
+
+	override suspend fun doWork(): Result {
+		// Log that the worker is executing
+		logI(SERVICE_EXECUTE)
+
+		// Notify the user the worker is working
+		notify(R.string.update) {
+			setOngoing()
+		}
+
+		/** Count of novels that have been updated */
 		val updateNovels = arrayListOf<NovelEntity>()
-		iNovelsRepository.loadBookmarkedNovelEntities().transform { list ->
-			successResult(
-				if (onlyUpdateOngoing())
-					list.filter { it.status == Novel.Status.PUBLISHING }
-				else list
-			)
+
+		/** Collect updated chapters to be used */
+		val updatedChapters = arrayListOf<ChapterEntity>()
+
+		iNovelsRepository.loadBookmarkedNovelEntities().transformToSuccess { list ->
+			if (onlyUpdateOngoing())
+				list.filter { it.status == Novel.Status.PUBLISHING }
+			else list
 		}.handle(
 			onError = { return Result.failure() },
 			onLoading = { return Result.failure() },
@@ -115,35 +130,100 @@ class NovelUpdateWorker(
 			var progress = 0
 
 			novels.forEach { nE ->
-				pr.setContentText(applicationContext.getString(R.string.updating) + nE.title)
-				pr.setProgress(novels.size, progress, false)
-				notificationManager.notify(ID_CHAPTER_UPDATE, pr.build())
-				loadNovelUseCase(nE, true) {
-					updateNovels.add(nE)
-				}.handle(onError = { toastErrorUseCase<NovelUpdateWorker>(it) })
+				val style = notificationStyle()
+				val title: String =
+					if (style) nE.title else applicationContext.getString(R.string.updating)
+				val content: String = if (style) "" else nE.title
+
+				if (showProgress()) {
+					notify(content) {
+						setContentTitle(title)
+						setProgress(novels.size, progress, false)
+						setOngoing()
+						setSilent(true)
+					}
+				} else notify(R.string.worker_novel_updating_silent) {
+					setOngoing()
+					setSilent(true)
+				}
+
+				loadRemoteNovelUseCase(nE, true).handle(
+					onError = {
+						logE("Failed to load novel: $nE", it.exception)
+						notify(
+							"${it.code} : ${it.message}",
+							10000 + nE.id!!
+						) {
+							setContentTitle(
+								getString(
+									R.string.worker_novel_update_load_failure,
+									nE.title
+								)
+							)
+
+							setNotOngoing()
+							removeProgress()
+							this.priority = NotificationCompat.PRIORITY_HIGH
+						}
+					}
+				) {
+					if (it.updatedChapters.isNotEmpty()) {
+						updateNovels.add(nE)
+						updatedChapters.addAll(it.updatedChapters)
+					}
+				}
 				progress++
 			}
 
+			notify(R.string.update_complete) {
+				setNotOngoing()
+				removeProgress()
+			}
 
-			notificationManager.notify(
-				ID_CHAPTER_UPDATE,
-				pr.apply {
-					setContentTitle(applicationContext.getString(R.string.update))
-					setContentText(
-						applicationContext.getString(R.string.update_complete) + "\n"
-					)
-					setOngoing(false)
-					setProgress(0, 0, false)
-				}.build()
-			)
-
-			if (updateNovels.isEmpty()) notificationManager.cancel(ID_CHAPTER_UPDATE)
-
+			// Get rid of the complete notification after 5 seconds
+			if (!classicFinale())
+				launchIO {
+					delay(5000)
+					notificationManager.cancel(defaultNotificationID)
+				}
 		}
 
+		if (!classicFinale())
+			for (novel in updateNovels) {
+				launchIO { // Run each novel notification on it's own seperate thread
+					val chapterSize: Int = updatedChapters.filter { it.novelID == novel.id }.size
+					notify(
+						applicationContext.resources.getQuantityString(
+							R.plurals.worker_novel_update_updated_novel_count,
+							chapterSize,
+							chapterSize
+						),
+						10000 + novel.id!!
+					) {
+						setContentTitle(
+							getString(
+								R.string.worker_novel_update_updated_novel,
+								novel.title
+							)
+						)
+						val bitmap: Bitmap? = try {
+							Picasso.get().load(novel.imageURL).get()
+						} catch (e: Exception) {
+							null
+						}
+
+						setLargeIcon(bitmap)
+
+						setNotOngoing()
+						removeProgress()
+					}
+				}
+			}
+
 		// Will update only if downloadOnUpdate is enabled and there have been chapters
-		if (downloadOnUpdate() && updateNovels.isNotEmpty())
-			startDownloadWorker()
+		if (downloadOnUpdate() && updateNovels.size > 0 && updatedChapters.size > 0)
+			startDownloadWorker(updatedChapters)
+
 
 		return Result.success()
 	}
@@ -172,17 +252,22 @@ class NovelUpdateWorker(
 		 * @return true if the service is running, false otherwise.
 		 */
 		override fun isRunning(): Boolean = try {
-			workerManager.getWorkInfosForUniqueWork(UPDATE_WORK_ID)
-				.get()[0].state == WorkInfo.State.RUNNING
+			getWorkerState() == WorkInfo.State.RUNNING
 		} catch (e: Exception) {
 			false
 		}
+
+		override fun getWorkerState(index: Int): WorkInfo.State =
+			workerManager.getWorkInfosForUniqueWork(UPDATE_WORK_ID).get()[index].state
+
+		override val count: Int
+			get() = workerManager.getWorkInfosForUniqueWork(UPDATE_WORK_ID).get().size
 
 		/**
 		 * Starts the service. It will be started only if there isn't another instance already
 		 * running.
 		 */
-		override fun start() {
+		override fun start(data: Data) {
 			launchIO {
 				logI(LogConstants.SERVICE_NEW)
 				workerManager.enqueueUniqueWork(

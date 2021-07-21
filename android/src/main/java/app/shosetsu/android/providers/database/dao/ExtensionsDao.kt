@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import app.shosetsu.android.domain.model.database.DBExtensionEntity
 import app.shosetsu.android.domain.model.database.DBStrippedExtensionEntity
 import app.shosetsu.android.providers.database.dao.base.BaseDao
+import app.shosetsu.lib.Version
 import kotlinx.coroutines.flow.Flow
 
 /*
@@ -49,7 +50,7 @@ interface ExtensionsDao : BaseDao<DBExtensionEntity> {
 
 	@Throws(SQLiteException::class)
 	@Query("SELECT * FROM extensions WHERE id = :formatterID LIMIT 1")
-	fun getExtension(formatterID: Int): DBExtensionEntity
+	fun getExtension(formatterID: Int): DBExtensionEntity?
 
 	@Throws(SQLiteException::class)
 	@Query("SELECT * FROM extensions WHERE id = :formatterID LIMIT 1")
@@ -66,20 +67,42 @@ interface ExtensionsDao : BaseDao<DBExtensionEntity> {
 	@Query("SELECT * FROM extensions WHERE repoID = :repoID")
 	fun getExtensions(repoID: Int): List<DBExtensionEntity>
 
+	/**
+	 * @return
+	 * 1 if extension updated (update ava),
+	 * 0 if inserted,
+	 */
 	@Throws(SQLiteException::class)
 	@Transaction
-	suspend fun insertOrUpdate(DBExtensionEntity: DBExtensionEntity) {
-		if (doesExtensionExist(DBExtensionEntity.id)) {
+	suspend fun insertOrUpdate(dbExtensionEntity: DBExtensionEntity): Int =
+		if (doesExtensionExist(dbExtensionEntity.id)) {
+			var isInstalled: Boolean
+			var oldVersion = Version(0, 0, 0)
 			update(
-				getExtension(DBExtensionEntity.id).copy(
-					name = DBExtensionEntity.name,
-					imageURL = DBExtensionEntity.imageURL,
-					repositoryVersion = DBExtensionEntity.repositoryVersion,
-					md5 = DBExtensionEntity.md5
+				getExtension(dbExtensionEntity.id)!!.also {
+					isInstalled = it.installed
+					if (isInstalled)
+						oldVersion = it.installedVersion!!
+				}.copy(
+					repoID = dbExtensionEntity.repoID,
+					name = dbExtensionEntity.name,
+					fileName = dbExtensionEntity.fileName,
+					imageURL = dbExtensionEntity.imageURL,
+					lang = dbExtensionEntity.lang,
+					// Ignore enabled, installed, installedVersion as those are independent
+					repositoryVersion = dbExtensionEntity.repositoryVersion,
+					chapterType = dbExtensionEntity.chapterType,
+					md5 = dbExtensionEntity.md5,
+					type = dbExtensionEntity.type
 				)
 			)
+
+			if (isInstalled && oldVersion.compareTo(dbExtensionEntity.repositoryVersion) == -1)
+				1
+			else
+				0
 		} else {
-			insertReplace(DBExtensionEntity)
+			insertReplace(dbExtensionEntity)
+			0
 		}
-	}
 }

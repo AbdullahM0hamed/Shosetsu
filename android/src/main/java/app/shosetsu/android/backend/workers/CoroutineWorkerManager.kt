@@ -1,12 +1,14 @@
 package app.shosetsu.android.backend.workers
 
 import android.content.Context
+import androidx.work.Data
 import androidx.work.Operation
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkManager.getInstance
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.kodein
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
 
 /*
  * This file is part of shosetsu.
@@ -32,15 +34,25 @@ import org.kodein.di.android.kodein
  */
 abstract class CoroutineWorkerManager(
 	val context: Context
-) : KodeinAware {
-	override val kodein: Kodein by kodein(context)
+) : DIAware {
+	override val di: DI by closestDI(context)
 
 	/**
 	 * WorkManager
 	 */
 	val workerManager: WorkManager by lazy { getInstance(context) }
 
-	abstract fun isRunning(): Boolean
-	abstract fun start()
+	/**
+	 * Count of workers that match the ID
+	 */
+	abstract val count: Int
+
+	abstract fun getWorkerState(index: Int = 0): WorkInfo.State
+
+	open fun isRunning(): Boolean =
+		getWorkerState() == WorkInfo.State.RUNNING
+
+	abstract fun start(data: Data = Data.EMPTY)
+
 	abstract fun stop(): Operation
 }

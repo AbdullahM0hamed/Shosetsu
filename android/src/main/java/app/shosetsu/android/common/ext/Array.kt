@@ -21,9 +21,9 @@ import app.shosetsu.common.domain.model.local.ExtLibEntity
  */
 
 
-fun List<ExtLibEntity>.containsName(name: String): Int {
+fun List<ExtLibEntity>.containsName(extLibName: String): Int {
 	forEachIndexed { index, (scriptName) ->
-		if (scriptName == name) {
+		if (scriptName == extLibName) {
 			return index
 		}
 	}

@@ -1,11 +1,8 @@
 {
-  "latestVersion": "1136",
-  "url": "https://github.com/shosetsuorg/shosetsu-preview/releases/download/r1136/shosetsu-r1136.apk",
+  "latestVersion": "1489",
+  "url": "https://github.com/shosetsuorg/shosetsu-preview/releases/download/r1489/shosetsu-r1489.apk",
   "releaseNotes": [
-    "### The in-app updater may or may not work, If it does not go here https://github.com/shosetsuorg/shosetsu-preview/releases/download/r1136/shosetsu-r1136.apk",
-    "- Added use cases for more advanced handling of UI",
-    "- Added new data sources for fdroid, uptodown & playstore releases",
-    "- Trying to figure out issue with timeout exceptions",
-    "- Minor update to in-app updater"
+    "- New error reporting server :D",
+    "- Fixes(?) crash when selecting in between"
   ]
 }

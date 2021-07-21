@@ -2,14 +2,14 @@ package app.shosetsu.android.ui.more
 
 import android.view.LayoutInflater
 import android.view.View
+import app.shosetsu.android.common.ext.shosetsuPush
 import app.shosetsu.android.ui.about.AboutController
 import app.shosetsu.android.ui.downloads.DownloadsController
 import app.shosetsu.android.ui.repository.RepositoryController
 import app.shosetsu.android.ui.settings.SettingsController
-import app.shosetsu.android.view.controller.base.CollapsedToolBarController
-import app.shosetsu.android.view.controller.base.PushCapableController
 import app.shosetsu.android.view.controller.ViewedController
-import com.bluelinelabs.conductor.Controller
+import app.shosetsu.android.view.controller.base.CollapsedToolBarController
+import app.shosetsu.common.dto.HResult
 import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerMoreBinding
 
 /*
@@ -36,25 +36,28 @@ import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerMoreBinding
  * Option for download queue
  */
 class MoreController
-	: ViewedController<ControllerMoreBinding>(), CollapsedToolBarController, PushCapableController {
-	override var pushController: (Controller) -> Unit = {}
+	: ViewedController<ControllerMoreBinding>(), CollapsedToolBarController {
 
 	override fun onViewCreated(view: View) {
 		binding.download.setOnClickListener {
-			pushController(DownloadsController())
+			router.shosetsuPush(DownloadsController())
 		}
 		binding.repositories.setOnClickListener {
-			pushController(RepositoryController())
+			router.shosetsuPush(RepositoryController())
 		}
 		binding.settings.setOnClickListener {
-			pushController(SettingsController())
+			router.shosetsuPush(SettingsController())
 		}
 		binding.info.setOnClickListener {
-			pushController(AboutController())
+			router.shosetsuPush(AboutController())
 		}
 	}
 
 	override fun bindView(inflater: LayoutInflater): ControllerMoreBinding =
 		ControllerMoreBinding.inflate(inflater)
+
+	override fun handleErrorResult(e: HResult.Error) {
+		TODO("Not yet implemented")
+	}
 
 }

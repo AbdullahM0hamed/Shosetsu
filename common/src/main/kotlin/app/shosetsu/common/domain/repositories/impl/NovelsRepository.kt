@@ -1,16 +1,14 @@
 package app.shosetsu.common.domain.repositories.impl
 
 import app.shosetsu.common.datasource.database.base.IDBNovelsDataSource
+import app.shosetsu.common.datasource.remote.base.IRemoteCatalogueDataSource
 import app.shosetsu.common.datasource.remote.base.IRemoteNovelDataSource
-import app.shosetsu.common.domain.model.local.BookmarkedNovelEntity
+import app.shosetsu.common.domain.model.local.LibraryNovelEntity
 import app.shosetsu.common.domain.model.local.NovelEntity
 import app.shosetsu.common.domain.model.local.StrippedBookmarkedNovelEntity
 import app.shosetsu.common.domain.model.local.StrippedNovelEntity
 import app.shosetsu.common.domain.repositories.base.INovelsRepository
-import app.shosetsu.common.dto.HResult
-import app.shosetsu.common.dto.emptyResult
-import app.shosetsu.common.dto.successResult
-import app.shosetsu.common.dto.transform
+import app.shosetsu.common.dto.*
 import app.shosetsu.lib.IExtension
 import app.shosetsu.lib.Novel
 import kotlinx.coroutines.flow.Flow
@@ -41,8 +39,9 @@ import kotlinx.coroutines.flow.Flow
 class NovelsRepository(
 	private val database: IDBNovelsDataSource,
 	private val remoteSource: IRemoteNovelDataSource,
+	private val remoteCatalogueDataSource: IRemoteCatalogueDataSource,
 ) : INovelsRepository {
-	override fun loadBookmarkedNovelFlow(): Flow<HResult<List<BookmarkedNovelEntity>>> =
+	override fun loadLibraryNovelEntities(): Flow<HResult<List<LibraryNovelEntity>>> =
 		database.loadBookmarkedNovelsFlow()
 
 	override suspend fun loadBookmarkedNovelEntities(): HResult<List<NovelEntity>> =
@@ -70,7 +69,7 @@ class NovelsRepository(
 			result.transform { list: List<NovelEntity> ->
 				if (list.isEmpty()) emptyResult()
 				successResult(list.filter { it.title.contains(string, false) }
-					.map { (id, _, _, _, _, _, title, imageURL, _, _, _, _, _, _, _) ->
+					.map { (id, _, _, _, _, _, title, imageURL, _, _, _, _, _, _) ->
 						StrippedBookmarkedNovelEntity(id!!, title, imageURL)
 					})
 			}
@@ -102,18 +101,34 @@ class NovelsRepository(
 			)
 		)
 
-	override suspend fun updateBookmarkedNovelData(list: List<BookmarkedNovelEntity>): HResult<*> =
+	override suspend fun updateLibraryNovelEntity(list: List<LibraryNovelEntity>): HResult<*> =
 		database.update(list)
 
 	override suspend fun retrieveNovelInfo(
-		iExtension: IExtension,
+		extension: IExtension,
 		novelEntity: NovelEntity,
 		loadChapters: Boolean,
 	): HResult<Novel.Info> =
-		remoteSource.loadNovel(iExtension, novelEntity.url, loadChapters)
+		remoteSource.loadNovel(extension, novelEntity.url, loadChapters)
+			.transformToSuccess { info ->
+				info.copy(
+					chapters = info.chapters.distinctBy { it.link }
+				)
+			}
 
 	override suspend fun clearUnBookmarkedNovels(): HResult<*> =
 		database.clearUnBookmarkedNovels()
 
+	override suspend fun getCatalogueSearch(
+		ext: IExtension,
+		query: String,
+		data: Map<Int, Any>
+	): HResult<List<Novel.Listing>> = remoteCatalogueDataSource.search(ext, query, data)
+
+	override suspend fun getCatalogueData(
+		ext: IExtension,
+		listing: Int,
+		data: Map<Int, Any>,
+	): HResult<List<Novel.Listing>> = remoteCatalogueDataSource.loadListing(ext, listing, data)
 
 }

@@ -5,15 +5,15 @@
     <string name="website">Website</string>
     <string name="website_url" translatable="false">https://shosetsu.app</string>
 
-    <string name="github">Github</string>
+    <string name="github" translatable="false">Github</string>
     <string name="github_url" translatable="false">https://github.com/shosetsuorg/android-app</string>
     <string name="extensions_url" translatable="false">https://github.com/shosetsuorg/extensions</string>
 
-    <string name="discord">Discord</string>
+    <string name="discord" translatable="false">Discord</string>
     <string name="discord_url" translatable="false">https://discord.gg/ttSX7gB</string>
 
-    <string name="patreon">Support the dev on Patreon</string>
-    <string name="patreon_url">https://www.patreon.com/doomsdayrs</string>
+    <string name="patreon" translatable="false">Support the dev on Patreon</string>
+    <string name="patreon_url" translatable="false">https://www.patreon.com/doomsdayrs</string>
 
     <string name="report_bug_link" translatable="false">https://github.com/Doomsdayrs/shosetsu/issues</string>
     <string name="author_github" translatable="false">https://github.com/Doomsdayrs</string>
@@ -151,13 +151,22 @@
     <string name="reader">Reader</string>
     <string name="default_reader">Default</string>
     <string name="markdown_reader">MarkDown reader</string>
-    <string name="chapters_unread_label">Chapters unread: </string>
+
+    <string name="chapters_unread_label">Chapters unread: %d</string>    <!-- Deprecated -->
+
+    <plurals name="toast_unread_count">
+        <item quantity="one">%d unread chapter.</item>
+        <item quantity="zero">No unread chapters.</item>
+        <item quantity="other">%d chapters unread.</item>
+    </plurals>
+
     <string name="remove_novel_cache">Remove Novel Cache</string>
 
 
     <!-- App Update -->
     <string name="notification_app_update_check">App Update Check</string>
     <string name="notification_app_update_available">App Update available</string>
+    <string name="notification_app_update_available_version">%s update available</string>
 
     <string name="notification_app_update_install_title">App Update Install</string>
     <string name="notification_app_update_loading">Loading app update</string>
@@ -270,13 +279,18 @@
     <string name="listings">Listings</string>
     <string name="search_filters">Search</string>
     <string name="updating">Updating</string>
+
+    <!-- Introduction -->
+
     <string name="intro_title_greet">Welcome to Shosetsu!</string>
-    <string name="intro_what_is_app">What is shosetsu?</string>
-    <string name="intro_what_is_app_desc">Shosetsu is a novel reading application, duh. Let\'s move on and read the license</string>
+    <string name="intro_what_is_app">What is Shosetsu?</string>
+    <string name="intro_what_is_app_desc">Shosetsu is a Free and Open Source Android application to read Novels</string>
     <string name="intro_perm_title">Permissions</string>
-    <string name="intro_perm_desc">Shosetsu is highly function, thus, we need ALL YOUR PERMS</string>
+    <string name="intro_perm_desc">Shosetsu needs read / write permissions to download chapters</string>
     <string name="intro_happy_end">Wonderful!</string>
     <string name="intro_happy_end_desc">That\'s it for an intro, Read well!</string>
+
+
     <string name="text_custom_color">Text Color</string>
     <string name="text_custom_background_color">Background Color</string>
     <string name="custom_theme_warn">Only for custom theme</string>
@@ -329,10 +343,10 @@
     <string name="error">Error</string>
     <string name="resume">Resume</string>
     <string name="waiting">Waiting</string>
-    <string name="mark_read_as_reading">Mark read as reading</string>
-    <string name="mark_read_as_reading_desc">Allows the reader to mark a read chapter as reading when its opened up.</string>
+    <string name="settings_reader_title_mark_read_as_reading">Mark read as reading</string>
+    <string name="settings_reader_desc_mark_read_as_reading">Allows the reader to mark a read chapter as reading when its opened up.</string>
     <string name="no_more_chapters">No more chapters</string>
-    <string name="next_chapter">Next Chapter...</string>
+    <string name="next_chapter">Next Chapter…</string>
 
     <string name="follow_system_theme">Follow System</string>
     <string name="sort">Sort</string>
@@ -342,6 +356,157 @@
     <string name="authors">Authors</string>
     <string name="artists">Artists</string>
     <string name="unread_status">Unread status</string>
+    <string name="message_backup_warning">While the backup is running, Please do not use the application</string>
+    <string name="update_novel">Novel Updater</string>
+    <string name="settings_backup_alert_select_location_title">Select location</string>
+    <string name="settings_backup_alert_location_external">External</string>
+    <string name="settings_backup_alert_location_internal">Internal</string>
+    <string name="settings_backup_alert_internal_title">Select a backup</string>
+    <string name="restore_notification_content_text_outdated">Backup is outdated</string>
+    <string name="restore_notification_content_missing_key">Backup does not contain \'version\' key</string>
+    <string name="restore_notification_content_decoding_string">Decoding</string>
+    <string name="restore_notification_content_unzipping_bytes">Unzipping</string>
+    <string name="restore_notification_content_unexpected_empty">Received empty, should not happen</string>
+    <string name="restore_notification_content_impossible_loading">Received loading, impossible</string>
+    <string name="restore_notification_content_starting">Starting restore</string>
+    <string name="restore_notification_title_adding_repos">Adding repositories</string>
+    <string name="restore_notification_content_novel_load">Loading novel data</string>
+    <string name="restore_notification_content_novel_save">Saving novel data</string>
+    <string name="restore_notification_content_novel_chapters_save">Saving novel chapters</string>
+    <string name="restore_notification_content_chapters_load">Loading chapters from database</string>
+    <string name="restore_notification_content_completed">Completed!</string>
+    <string name="restore_notification_subtitle">Restore</string>
+    <string name="toast_repository_removed">Removed Repository!</string>
+    <string name="repository_add_name_hint">Repository name</string>
+    <string name="repository_add_url_hint">Repository URL</string>
+    <string name="repository_add_title">Add Repository</string>
+    <string name="toast_repository_added">Repository Added</string>
+    <string name="toast_repository_add_fail">Failed to add repository</string>
+    <string name="toast_repository_remove_fail">Failed to remove repository!</string>
+    <string name="controller_repositories_snackbar_repo_changed">Refresh the repositories?</string>
+    <string name="controller_repositories_snackbar_repo_removed">Repository removed.</string>
+
+
+    <string name="text_alignment_start">Start</string>
+    <string name="text_alignment_center">Center</string>
+    <string name="text_alignment_justified">Justified</string>
+    <string name="text_alignment_end">End</string>
+
+
+    <string name="settings_reader_title_string_to_html">Convert string to html</string>
+    <string name="settings_reader_desc_string_to_html">All string based extensions are rendered as html</string>
+    <string name="settings_reader_title_horizontal_option">Horizontal paging</string>
+    <string name="settings_reader_desc_horizontal_option">Swipe left and right to move between chapters</string>
+    <string name="settings_reader_title_html_css">Html CSS</string>
+    <string name="settings_reader_desc_html_css">CSS injected into html reader</string>
+    <string name="settings_reader_title_continous_scroll">Continuous scroll</string>
+    <string name="settings_reader_desc_continous_scroll">Smoothly scroll between chapters</string>
+
+    <!-- Notification channel names -->
+    <string name="notification_channel_name_novel_update">Novel Updates</string>
+    <string name="notification_channel_name_download">Chapter Download</string>
+    <string name="notification_channel_name_app_update">App Update</string>
+    <string name="notification_channel_name_backup">Backup and Restore</string>
+    <string name="notification_channel_name_repository_update">Repository Update</string>
+
+    <!-- Empty View Messages -->
+    <string name="empty_browse_message">There are no extensions, Refresh this page or check your repositories</string>
+    <string name="empty_library_message">You don\'t have any novels, Go to "Browse" and add some</string>
+    <string name="empty_updates_message">No updates, Lets check for some (Refresh or press below)</string>
+    <string name="empty_downloads_message">No downloads pending, Go download some chapters</string>
+    <string name="empty_repositories_message">You have no repositories, This app is useless without them</string>
+
+    <!-- Empty View Actions -->
+    <string name="empty_updates_refresh_action">Refresh</string>
+    <string name="empty_browse_refresh_action">Refresh</string>
+    <string name="empty_repositories_action">Add Repository</string>
+
+
+    <string name="controller_catalogue_toast_background_add">Adding to library in background</string>
+    <string name="jump_to_chapter">Jump to Chapter</string>
+    <string name="controller_novel_jump_dialog_hint_chapter_number">Chapter Number</string>
+    <string name="controller_novel_jump_dialog_hint_chapter_title">Chapter Title</string>
+    <string name="alert_dialog_jump_positive">Jump</string>
+    <string name="help">Help</string>
+    <string name="settings_advanced_verify_checksum_title">Verify extension check sum</string>
+    <string name="settings_advanced_verify_checksum_desc">Verify if the extension content matches the checksum from the index</string>
+    <string name="toast_error_repository_toggle_enabled_failed">Failed to toggle enabled state of repository</string>
+    <string name="toast_success_repository_toggled_enabled">Repository has been enabled</string>
+    <string name="toast_success_repository_toggled_disabled">Repository has been disabled</string>
+    <string name="alert_dialog_title_warn_repo_removal">Repo Removal Warning</string>
+    <string name="alert_dialog_message_warn_repo_removal">Are you sure about removing this repository?</string>
+    <string name="double_back_message">Click back again to exit</string>
+    <string name="settings_advanced_require_double_back_title">Require double back to exit</string>
+    <string name="settings_advanced_require_double_back_desc">If enabled, will require the user to do the back action 2x to leave the app</string>
+
+    <string name="settings_reader_keep_screen_on">Keep screen on</string>
+    <string name="settings_reader_keep_screen_on_desc">The chapter reader will keep the screen on while open</string>
+    <string name="toast_error_chapter_jump_invalid_target">No chapter found</string>
+    <string name="controller_novel_jum_dialog_by_title">Search by chapter title</string>
+
+    <string name="toast_error_chapter_jump_invalid_number">Chapter number required</string>
+    <string name="toast_error_chapter_jump_empty_title">Chapter title needed</string>
+    <string name="controller_browse_option_Import">Import Novel</string>
+    <string name="toast_error_select_between_needs_two">Select between needs at least 2 selected items</string>
+    <string name="controller_repositories_action_repo_update">Refresh</string>
+    <string name="generic_undo">Undo</string>
+    <string name="generic_question_retry">Retry?</string>
+    <string name="controller_repositories_snackbar_fail_undo_repo_removal">Failed to undo repository removal</string>
+    <string name="generic_wifi_settings">Wi-Fi Settings</string>
+    <string name="controller_browse_snackbar_not_installed">Extension is not installed</string>
+    <string name="controller_browse_snackbar_offline_no_extension">Extensions cannot be used offline</string>
+    <string name="controller_browse_snackbar_offline_no_update_extension">Cannot update when offline</string>
+    <string name="controller_browse_snackbar_offline_no_install_extension">Cannot install when offline</string>
+    <string name="generic_error_cannot_update_library_offline">Novels cannot be updated offline</string>
+    <string name="controller_downloads_snackbar_offline_no_download">Cannot download when offline</string>
+    <string name="controller_repositories_snackbar_offline_no_update">Cannot update repositories offline</string>
+    <string name="controller_configure_extension_empty_settings">This extension has no settings!</string>
+    <string name="controller_configure_extension_empty_settings_rety">Reload extension?</string>
+    <string name="notification_content_title_extension_download">Extension Downloader</string>
+
+    <string name="notification_content_text_extension_download">Downloading %s</string>
+    <string name="notification_content_text_extension_installed">Installed %s</string>
+    <string name="notification_content_text_extension_installed_failed">Failed to install %s</string>
+    <string name="settings_reader_inverted_swipe_title">Invert chapter swipe</string>
+    <string name="settings_reader_inverted_swipe_desc">Invert the chapter swipe when horizontally paging</string>
+    <string name="settings_download_notify_extension_install_title">Notify extension downloading</string>
+    <string name="settings_download_notify_extension_install_desc">Create a notification displaying progress when an extension is being downloaded/installed.</string>
+    <string name="restore_notification_content_settings_restore">Restore novel settings</string>
+    <string name="controller_novel_snackbar_refresh_empty_result">Error: Received empty result while reloading</string>
+    <string name="controller_novel_snackbar_cannot_inital_load_offline">Cannot load novel content while offline</string>
+    <string name="controller_novel_snackbar_finished_reading">You have read all the chapters.</string>
+    <string name="worker_title_download">Chapter Downloader</string>
+    <string name="controller_settings_restart_worker">Restart %s to apply new settings</string>
+    <string name="settings_update_header_repositories">Repositories</string>
+    <string name="settings_update_header_novel">Novels</string>
+    <string name="settings_update_worker_id_novel_updaters">Novel Updaters</string>
+    <string name="worker_title_update_repository">Repository Updater</string>
+    <string name="settings_advanced_purge_button">PURGE</string>
+    <string name="controller_settings_advanced_snackbar_purge_failure">Failed to purge</string>
+    <string name="controller_settings_advanced_snackbar_purge_success">Purged unbookmarked novels</string>
+    <string name="worker_novel_update_load_failure">Failed to update %s</string>
+    <string name="controller_settings_advanced_snackbar_ui_change">Press apply to change the UI</string>
+    <string name="controller_catalogue_toast_background_add_success">Added \"%s\" to Library</string>
+    <string name="jump_to_chapter_short">Jump</string>
+    <string name="worker_novel_update_updated_novel">New chapters available for \"%s\"</string>
+    <string name="worker_novel_updating_silent">Updating novels...</string>
+
+    <plurals name="worker_novel_update_updated_novel_count">
+        <item quantity="one">%d new chapter.</item>
+        <item quantity="zero">No new chapters.</item>
+        <item quantity="other">%d new chapters.</item>
+    </plurals>
+
+
+    <!-- Error Key Messages -->
+
+
+    <array name="text_alignments">
+        <item>@string/text_alignment_start</item>
+        <item>@string/text_alignment_center</item>
+        <item>@string/text_alignment_justified</item>
+        <item>@string/text_alignment_end</item>
+    </array>
 
     <array name="application_themes">
         <item>@string/follow_system_theme</item>
@@ -370,6 +535,11 @@
         <item>@string/normal</item>
         <item>@string/compressed</item>
         <item>@string/comfy</item>
+    </array>
+
+    <array name="settings_backup_alert_location_array">
+        <item>@string/settings_backup_alert_location_external</item>
+        <item>@string/settings_backup_alert_location_internal</item>
     </array>
 </resources>
 

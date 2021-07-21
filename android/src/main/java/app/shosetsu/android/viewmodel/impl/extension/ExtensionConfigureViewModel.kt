@@ -17,23 +17,24 @@ package app.shosetsu.android.viewmodel.impl.extension
  * along with shosetsu.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import android.app.Application
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.switchMap
-import app.shosetsu.android.common.ext.launchIO
-import app.shosetsu.android.common.ext.logI
+import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.domain.usecases.UninstallExtensionUIUseCase
+import app.shosetsu.android.domain.usecases.get.GetExtListingNamesUseCase
+import app.shosetsu.android.domain.usecases.get.GetExtSelectedListingUseCase
 import app.shosetsu.android.domain.usecases.get.GetExtensionSettingsUseCase
 import app.shosetsu.android.domain.usecases.get.GetExtensionUIUseCase
-import app.shosetsu.android.domain.usecases.update.UpdateExtensionEntityUseCase
+import app.shosetsu.android.domain.usecases.update.UpdateExtSelectedListing
 import app.shosetsu.android.view.uimodels.model.ExtensionUI
 import app.shosetsu.android.view.uimodels.settings.base.SettingsItemData
-import app.shosetsu.android.viewmodel.abstracted.IExtensionConfigureViewModel
-import app.shosetsu.common.dto.HResult
-import app.shosetsu.common.dto.mapLatestResult
-import app.shosetsu.common.dto.successResult
+import app.shosetsu.android.view.uimodels.settings.dsl.*
+import app.shosetsu.android.viewmodel.abstracted.AExtensionConfigureViewModel
+import app.shosetsu.common.dto.*
+import com.github.doomsdayrs.apps.shosetsu.R
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 
 /**
  * shosetsu
@@ -42,66 +43,113 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  * @author github.com/doomsdayrs
  */
 class ExtensionConfigureViewModel(
-	private val loadExtensionUIUI: GetExtensionUIUseCase,
-	private val updateExtensionEntityUseCase: UpdateExtensionEntityUseCase,
-	private val uninstallExtensionUIUseCase: UninstallExtensionUIUseCase,
+	private val application: Application,
+	private val loadExtensionUI: GetExtensionUIUseCase,
+	private val uninstallExtensionUI: UninstallExtensionUIUseCase,
 	private val getExtensionSettings: GetExtensionSettingsUseCase,
-	private val reportExceptionUseCase: ReportExceptionUseCase
-) : IExtensionConfigureViewModel() {
-	private val idLive by lazy {
-		MutableLiveData(internalID)
-	}
-	private var internalID: Int = -1
+	private val reportException: ReportExceptionUseCase,
+	private val getExtListNames: GetExtListingNamesUseCase,
+	private val updateExtSelectedListing: UpdateExtSelectedListing,
+	private val getExtSelectedListing: GetExtSelectedListingUseCase
+) : AExtensionConfigureViewModel() {
+	private val extensionIdFlow: MutableStateFlow<Int> by lazy { MutableStateFlow(-1) }
 
 	@ExperimentalCoroutinesApi
 	override val liveData: LiveData<HResult<ExtensionUI>> by lazy {
-		idLive.switchMap {
-			loadExtensionUIUI(it).asIOLiveData()
-		}
+		extensionIdFlow.transformLatest { id ->
+			emitAll(loadExtensionUI(id))
+		}.asIOLiveData()
 	}
 
 	override fun reportError(error: HResult.Error, isSilent: Boolean) {
-		reportExceptionUseCase(error)
+		reportException(error)
 	}
 
-	override val extensionSettings: LiveData<HResult<List<SettingsItemData>>> by lazy {
-		idLive.switchMap {
-			getExtensionSettings(it).mapLatestResult {
-				successResult(arrayListOf<SettingsItemData>())
-			}.asIOLiveData()
+	private suspend fun makeListingSetting(extensionID: Int, nameList: List<String>) =
+		spinnerSettingData(0) {
+			titleRes = R.string.listings
+			getExtSelectedListing(extensionID).handle { selectedListing ->
+				spinnerValue { selectedListing }
+			}
+			arrayAdapter = android.widget.ArrayAdapter(
+				application.applicationContext,
+				android.R.layout.simple_spinner_dropdown_item,
+				nameList.toTypedArray()
+			)
+			var first = true
+			onSpinnerItemSelected { _, _, position, _ ->
+				if (first) {
+					first = false
+					return@onSpinnerItemSelected
+				}
+				launchIO {
+					updateExtSelectedListing(extensionID, position)
+				}
+			}
 		}
+
+	@ExperimentalCoroutinesApi
+	private val extListNamesFlow: Flow<HResult<List<SettingsItemData>>> by lazy {
+		extensionIdFlow.transformLatest { extensionID ->
+			emit(
+				getExtListNames(extensionID).transformToSuccess { nameList ->
+					listOf(makeListingSetting(extensionID, nameList))
+				}
+			)
+		}
+	}
+
+	@ExperimentalCoroutinesApi
+	private val extensionSettingsFlow: Flow<HResult<List<SettingsItemData>>> by lazy {
+		extensionIdFlow.transformLatest { extensionID ->
+			emitAll(getExtensionSettings(extensionID))
+		}
+	}
+
+	@ExperimentalCoroutinesApi
+	override val extensionSettings: LiveData<HResult<List<SettingsItemData>>> by lazy {
+		extListNamesFlow.combine(extensionSettingsFlow) { a, b ->
+			logD("Listing result: $a")
+			logD("Settings result: $b")
+			val listings = a.unwrap() ?: listOf()
+			b.transform(
+				onEmpty = {
+					successResult(listings)
+				},
+			) {
+				successResult(listings + it)
+			}
+		}.asIOLiveData()
 	}
 
 	override fun setExtensionID(id: Int) {
+		logV("Setting extension id = $id")
 		launchIO {
 			when {
-				internalID == id -> {
-					logI("ID the same, ignoring")
+				extensionIdFlow.value == id -> {
+					this@ExtensionConfigureViewModel.logI("id is the same, ignoring")
 					return@launchIO
 				}
-				internalID != id -> {
-					logI("ID not equal, resetting")
+				extensionIdFlow.value != id -> {
+					this@ExtensionConfigureViewModel.logI("id is different, resetting")
 					destroy()
 				}
-				internalID == -1 -> {
-					logI("ID is new, setting")
+				extensionIdFlow.value == -1 -> {
+					this@ExtensionConfigureViewModel.logI("id is new, setting")
 				}
 			}
-			internalID = id
-			idLive.postValue(id)
+			extensionIdFlow.value = id
 		}
 	}
 
-	override suspend fun saveSetting(id: Int, value: Any) {
-	}
-
 	override fun uninstall(extensionUI: ExtensionUI) {
-		uninstallExtensionUIUseCase(extensionUI)
+		launchIO {
+			uninstallExtensionUI(extensionUI)
+		}
 	}
 
 	override fun destroy() {
-		idLive.postValue(-1)
-		internalID = -1
+		extensionIdFlow.value = -1
 	}
 }
 

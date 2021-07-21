@@ -38,7 +38,6 @@ import app.shosetsu.common.dto.handle
 class DownloadChapterPassageUseCase(
 	private val novelRepo: INovelsRepository,
 	private val downloadsRepository: IDownloadsRepository,
-	private val startDownloadWorkerUseCase: StartDownloadWorkerUseCase,
 	private var iSettingsRepository: ISettingsRepository
 ) {
 	suspend operator fun invoke(chapterUI: ChapterEntity) {
@@ -53,7 +52,6 @@ class DownloadChapterPassageUseCase(
 					chapterUI.extensionID
 				)
 			)
-			startDownloadWorkerUseCase()
 
 			if (!novel.bookmarked)
 				iSettingsRepository.getBoolean(SettingKey.BookmarkOnDownload).handle {

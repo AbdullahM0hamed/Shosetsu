@@ -6,12 +6,13 @@ import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import app.shosetsu.android.common.ext.context
 import app.shosetsu.android.common.ext.picasso
 import app.shosetsu.android.view.controller.ViewedController
+import app.shosetsu.common.dto.HResult
 import app.shosetsu.lib.IExtension
 import app.shosetsu.lib.Novel
 import com.github.doomsdayrs.apps.shosetsu.R
@@ -98,7 +99,7 @@ class MigrationController(bundle: Bundle) : ViewedController<MigrationViewBindin
 		RecyclerView.Adapter<TransfereeAdapter.TransfereeViewHolder>() {
 		class TransfereeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 			val imageView: ImageView = itemView.findViewById(R.id.imageView)
-			val title: TextView = itemView.findViewById(R.id.title)
+			val title: AppCompatTextView = itemView.findViewById(R.id.title)
 		}
 
 		override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransfereeViewHolder {
@@ -129,7 +130,7 @@ class MigrationController(bundle: Bundle) : ViewedController<MigrationViewBindin
 	) : RecyclerView.Adapter<CatalogueSelectionAdapter.CatalogueHolder>() {
 		class CatalogueHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 			val imageView: ImageView = itemView.findViewById(R.id.imageView)
-			val title: TextView = itemView.findViewById(R.id.title)
+			val title: AppCompatTextView = itemView.findViewById(R.id.title)
 			var id: Int = -1
 		}
 
@@ -156,6 +157,10 @@ class MigrationController(bundle: Bundle) : ViewedController<MigrationViewBindin
 				migrationController.setupViewWithTransferee(transfereePosition)
 			}
 		}
+	}
+
+	override fun handleErrorResult(e: HResult.Error) {
+		TODO("Not yet implemented")
 	}
 
 }

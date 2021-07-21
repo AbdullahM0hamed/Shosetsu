@@ -4,10 +4,10 @@ import app.shosetsu.android.domain.repository.impl.AppUpdatesRepository
 import app.shosetsu.android.domain.repository.impl.ExtensionLibrariesRepository
 import app.shosetsu.common.domain.repositories.base.*
 import app.shosetsu.common.domain.repositories.impl.*
-import org.kodein.di.Kodein
-import org.kodein.di.generic.bind
-import org.kodein.di.generic.instance
-import org.kodein.di.generic.singleton
+import org.kodein.di.DI
+import org.kodein.di.bind
+import org.kodein.di.instance
+import org.kodein.di.singleton
 
 /*
  * This file is part of shosetsu.
@@ -33,7 +33,7 @@ import org.kodein.di.generic.singleton
  * @author github.com/doomsdayrs
  */
 
-val repositoryModule: Kodein.Module = Kodein.Module("repository_module") {
+val repositoryModule: DI.Module = DI.Module("repository_module") {
 	bind<IChaptersRepository>() with singleton {
 		ChaptersRepository(instance(), instance(), instance(), instance(), instance())
 	}
@@ -50,7 +50,13 @@ val repositoryModule: Kodein.Module = Kodein.Module("repository_module") {
 
 	bind<IExtensionRepoRepository>() with singleton { ExtRepoRepository(instance(), instance()) }
 
-	bind<INovelsRepository>() with singleton { NovelsRepository(instance(), instance()) }
+	bind<INovelsRepository>() with singleton {
+		NovelsRepository(
+			instance(),
+			instance(),
+			instance()
+		)
+	}
 
 	bind<IUpdatesRepository>() with singleton { UpdatesRepository(instance()) }
 
@@ -60,5 +66,14 @@ val repositoryModule: Kodein.Module = Kodein.Module("repository_module") {
 
 	bind<IBackupRepository>() with singleton { BackupRepository(instance()) }
 
-	bind<INovelSettingsRepository>() with singleton { TempNovelSettingsRepository() }
+	bind<INovelSettingsRepository>() with singleton { NovelSettingsRepository(instance()) }
+	bind<INovelReaderSettingsRepository>() with singleton { NovelReaderSettingsRepository(instance()) }
+	bind<IExtensionSettingsRepository>() with singleton {
+		ExtensionSettingsRepository(
+			iFileSettingSystem = instance()
+		)
+	}
+
+	bind<IExtensionDownloadRepository>() with singleton { ExtensionDownloadRepository() }
+
 }

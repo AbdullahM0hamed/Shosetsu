@@ -1,24 +1,22 @@
 package app.shosetsu.android.backend.workers.onetime
 
-import android.app.Notification
-import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.core.content.getSystemService
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.*
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
 import app.shosetsu.android.backend.workers.CoroutineWorkerManager
+import app.shosetsu.android.backend.workers.NotificationCapable
 import app.shosetsu.android.common.consts.ACTION_OPEN_APP_UPDATE
 import app.shosetsu.android.common.consts.LogConstants
 import app.shosetsu.android.common.consts.Notifications
 import app.shosetsu.android.common.consts.Notifications.ID_APP_UPDATE
 import app.shosetsu.android.common.consts.WorkerTags.APP_UPDATE_WORK_ID
-import app.shosetsu.android.common.ext.launchIO
-import app.shosetsu.android.common.ext.logE
-import app.shosetsu.android.common.ext.logI
-import app.shosetsu.android.common.ext.toHError
+import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.domain.usecases.load.LoadRemoteAppUpdateUseCase
 import app.shosetsu.android.ui.splash.SplashScreen
@@ -28,10 +26,10 @@ import app.shosetsu.common.domain.repositories.base.ISettingsRepository
 import app.shosetsu.common.domain.repositories.base.getBooleanOrDefault
 import app.shosetsu.common.dto.handle
 import com.github.doomsdayrs.apps.shosetsu.R
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.closestKodein
-import org.kodein.di.generic.instance
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
+import org.kodein.di.instance
 
 /*
  * This file is part of shosetsu.
@@ -59,49 +57,58 @@ import org.kodein.di.generic.instance
 class AppUpdateCheckWorker(
 	appContext: Context,
 	params: WorkerParameters
-) : CoroutineWorker(appContext, params), KodeinAware {
-	override val kodein: Kodein by closestKodein(applicationContext)
+) : CoroutineWorker(appContext, params), DIAware, NotificationCapable {
+	override val di: DI by closestDI(applicationContext)
 	private val openAppForUpdateIntent: Intent
 		get() = Intent(applicationContext, SplashScreen::class.java).apply {
 			action = ACTION_OPEN_APP_UPDATE
 		}
+	override val defaultNotificationID: Int = ID_APP_UPDATE
 
 	private val loadRemoteAppUpdateUseCase by instance<LoadRemoteAppUpdateUseCase>()
-	private val notificationManager: NotificationManager by lazy { appContext.getSystemService()!! }
+	override val notificationManager: NotificationManagerCompat by notificationManager()
 	private val reportExceptionUseCase by instance<ReportExceptionUseCase>()
 
-	private val progressNotification by lazy {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			Notification.Builder(appContext, Notifications.CHANNEL_APP_UPDATE)
-		} else {
-			// Suppressed due to lower API
-			@Suppress("DEPRECATION")
-			Notification.Builder(appContext)
-		}
-			.setContentTitle(applicationContext.getString(R.string.notification_app_update_check))
+	override val baseNotificationBuilder: NotificationCompat.Builder
+		get() = notificationBuilder(applicationContext, Notifications.CHANNEL_APP_UPDATE)
+			.setSubText(applicationContext.getString(R.string.notification_app_update_check))
 			.setSmallIcon(R.drawable.app_update)
 			.setOnlyAlertOnce(true)
-	}
+			.setOngoing(true)
+
+	override val notifyContext: Context
+		get() = applicationContext
+
 
 	override suspend fun doWork(): Result {
 		try {
-			val pr = progressNotification
-			pr.setOngoing(true)
-			notificationManager.notify(ID_APP_UPDATE, pr.build())
-			val result = loadRemoteAppUpdateUseCase()
-			pr.setOngoing(false)
-			result.handle(onEmpty = {
-				notificationManager.cancel(ID_APP_UPDATE)
+			notify("Starting")
+			loadRemoteAppUpdateUseCase().handle(onEmpty = {
+				notificationManager.cancel(defaultNotificationID)
 			}, onError = {
 				logE("Error!", it.exception)
-				pr.setContentText("Error! ${it.code} | ${it.message}")
-				notificationManager.notify(ID_APP_UPDATE, pr.build())
+				notify("Error! ${it.code} | ${it.message}") {
+					setOngoing(false)
+				}
 			}) {
-				pr.setContentText(
-					applicationContext.getString(R.string.notification_app_update_available)
-							+ " " + it.version
-				)
-				notificationManager.notify(ID_APP_UPDATE, pr.build())
+				notify(
+					applicationContext.getString(
+						R.string.notification_app_update_available_version,
+						it.version
+					)
+				) {
+					setOngoing(false)
+					addAction(
+						R.drawable.app_update,
+						"",
+						PendingIntent.getActivity(
+							applicationContext,
+							0,
+							openAppForUpdateIntent,
+							0
+						)
+					)
+				}
 			}
 			return Result.success()
 		} catch (e: Exception) {
@@ -109,7 +116,6 @@ class AppUpdateCheckWorker(
 		}
 		return Result.failure()
 	}
-
 
 	/**
 	 * Manager of [AppUpdateCheckWorker]
@@ -124,6 +130,12 @@ class AppUpdateCheckWorker(
 		private suspend fun appUpdateOnlyIdle(): Boolean =
 			iSettingsRepository.getBooleanOrDefault(AppUpdateOnlyWhenIdle)
 
+		override fun getWorkerState(index: Int): WorkInfo.State =
+			workerManager.getWorkInfosForUniqueWork(APP_UPDATE_WORK_ID).get()[index].state
+
+		override val count: Int
+			get() = workerManager.getWorkInfosForUniqueWork(APP_UPDATE_WORK_ID).get().size
+
 		/**
 		 * Returns the status of the service.
 		 *
@@ -131,8 +143,7 @@ class AppUpdateCheckWorker(
 		 */
 		override fun isRunning(): Boolean = try {
 			// Is this running
-			val a = (workerManager.getWorkInfosForUniqueWork(APP_UPDATE_WORK_ID)
-				.get()[0].state == WorkInfo.State.RUNNING)
+			val a = (getWorkerState() == WorkInfo.State.RUNNING)
 
 			// Don't run if update is being installed
 			val b = !AppUpdateInstallWorker.Manager(context).isRunning()
@@ -145,7 +156,7 @@ class AppUpdateCheckWorker(
 		 * Starts the service. It will be started only if there isn't another instance already
 		 * running.
 		 */
-		override fun start() {
+		override fun start(data: Data) {
 			launchIO {
 				logI(LogConstants.SERVICE_NEW)
 				workerManager.enqueueUniqueWork(

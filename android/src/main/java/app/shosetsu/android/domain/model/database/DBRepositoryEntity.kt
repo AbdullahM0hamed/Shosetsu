@@ -29,6 +29,8 @@ import app.shosetsu.common.dto.Convertible
  * 05 / 12 / 2020
  *
  * @param url must be unique
+ *
+ * @see RepositoryEntity
  */
 @Entity(
 	tableName = "repositories",
@@ -39,13 +41,18 @@ import app.shosetsu.common.dto.Convertible
 data class DBRepositoryEntity(
 	@PrimaryKey(autoGenerate = true)
 	var id: Int?,
+
 	@ColumnInfo
 	val url: String,
+
 	var name: String,
+
+	var isEnabled: Boolean
 ) : Convertible<RepositoryEntity> {
 	override fun convertTo(): RepositoryEntity = RepositoryEntity(
 		id,
 		url,
-		name
+		name,
+		isEnabled
 	)
 }

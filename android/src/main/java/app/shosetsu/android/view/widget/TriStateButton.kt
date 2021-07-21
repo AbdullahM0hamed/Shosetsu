@@ -8,7 +8,8 @@ import android.widget.FrameLayout
 import androidx.annotation.StringRes
 import androidx.core.content.res.getResourceIdOrThrow
 import androidx.core.view.isVisible
-import app.shosetsu.android.view.widget.TriStateButton.State.*
+import app.shosetsu.android.view.widget.TriState.State
+import app.shosetsu.android.view.widget.TriState.State.*
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.github.doomsdayrs.apps.shosetsu.databinding.TriStateButtonBinding
 
@@ -41,28 +42,24 @@ open class TriStateButton @JvmOverloads constructor(
 	context,
 	attrs,
 	defStyleAttr
-) {
+), TriState {
 	private val checkedRes: Int
 	private val uncheckedRes: Int
 	private val ignoredRes: Int
 
-
-	/**
-	 * Prevents this button from going into an ignored state
-	 */
-	var skipIgnored = false
-
-	var state: State = IGNORED
+	override var state: State = IGNORED
 		set(value) {
 			field = value
-			onStateChangeListener.forEach { listener ->
+			onStateChangeListeners.forEach { listener ->
 				listener(value)
 			}
 			setDrawable()
 		}
 
+	override var skipIgnored: Boolean = false
+
 	private val onClickListeners = ArrayList<(View) -> Unit>()
-	private val onStateChangeListener = ArrayList<(State) -> Unit>()
+	override val onStateChangeListeners = ArrayList<(State) -> Unit>()
 
 	private val binding: TriStateButtonBinding by lazy {
 		TriStateButtonBinding.inflate(
@@ -76,8 +73,8 @@ open class TriStateButton @JvmOverloads constructor(
 				try {
 					checkedRes = getResourceIdOrThrow(R.styleable.TriStateButton_button_checked)
 					uncheckedRes = getResourceIdOrThrow(R.styleable.TriStateButton_button_unchecked)
-					ignoredRes = getResourceId(R.styleable.TriStateButton_button_ignored, 0)
-					state = State.fromKey(getResourceId(R.styleable.TriStateButton_state, 0))
+					ignoredRes = getResourceId(R.styleable.TriStateButton_button_ignored, -1)
+					state = values()[getResourceId(R.styleable.TriStateButton_button_state, 0)]
 
 					binding.textView.text = getString(R.styleable.TriStateButton_android_text)
 						?: ""
@@ -116,32 +113,9 @@ open class TriStateButton @JvmOverloads constructor(
 		onClickListeners.clear()
 	}
 
-	fun addOnStateChangeListener(onClick: (State) -> Unit) {
-		onStateChangeListener.add(onClick)
-	}
-
-	fun removeOnStateChangeListener(onClick: (State) -> Unit) {
-		onStateChangeListener.remove(onClick)
-	}
-
-	fun clearOnStateChangeListener() {
-		onStateChangeListener.clear()
-	}
-
-	/**
-	 * Cycles through the states of the tristate button
-	 */
-	fun cycleState() {
-		state = when (state) {
-			IGNORED -> CHECKED
-			CHECKED -> UNCHECKED
-			UNCHECKED -> if (skipIgnored) CHECKED else IGNORED
-		}
-	}
-
 	private fun setDrawable() {
 		if (state == IGNORED) {
-			if (ignoredRes != 0) {
+			if (ignoredRes != -1) {
 				binding.imageView.setImageResource(ignoredRes)
 			} else binding.imageView.visibility = INVISIBLE
 			return
@@ -151,11 +125,4 @@ open class TriStateButton @JvmOverloads constructor(
 		binding.imageView.setImageResource(if (state == CHECKED) checkedRes else uncheckedRes)
 	}
 
-	enum class State(val key: Int) {
-		IGNORED(0), CHECKED(1), UNCHECKED(2);
-
-		companion object {
-			fun fromKey(key: Int) = values().find { it.key == key }!!
-		}
-	}
 }

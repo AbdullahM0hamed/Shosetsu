@@ -19,24 +19,18 @@ package app.shosetsu.android.ui.downloads
 
 import android.view.*
 import androidx.recyclerview.widget.RecyclerView
-import app.shosetsu.android.common.ext.launchUI
-import app.shosetsu.android.common.ext.setOnPreClickListener
-import app.shosetsu.android.common.ext.setSelectionListener
-import app.shosetsu.android.common.ext.viewModel
-import app.shosetsu.android.view.controller.FastAdapterRecyclerController.BottomMenuBasicFastAdapterRecyclerController
+import app.shosetsu.android.common.ext.*
+import app.shosetsu.android.view.controller.BottomMenuBasicFastAdapterRecyclerController
 import app.shosetsu.android.view.controller.base.ExtendedFABController
-import app.shosetsu.android.view.controller.base.PushCapableController
 import app.shosetsu.android.view.uimodels.model.DownloadUI
-import app.shosetsu.android.viewmodel.abstracted.IDownloadsViewModel
+import app.shosetsu.android.viewmodel.abstracted.ADownloadsViewModel
 import app.shosetsu.common.dto.HResult
 import app.shosetsu.common.enums.DownloadStatus.*
-import com.bluelinelabs.conductor.Controller
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-import com.mikepenz.fastadapter.IAdapter
+import com.mikepenz.fastadapter.FastAdapter
 import com.mikepenz.fastadapter.select.getSelectExtension
 import com.mikepenz.fastadapter.select.selectExtension
-import com.mikepenz.fastadapter.utils.AdapterPredicate
 
 /**
  * Shosetsu
@@ -44,16 +38,20 @@ import com.mikepenz.fastadapter.utils.AdapterPredicate
  *
  * @author github.com/doomsdayrs
  */
-class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<DownloadUI>(),
-	PushCapableController, ExtendedFABController {
+class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<DownloadUI>(), ExtendedFABController {
 
 	override val viewTitleRes: Int = R.string.downloads
-	private val viewModel: IDownloadsViewModel by viewModel()
+	private val viewModel: ADownloadsViewModel by viewModel()
 	private var fab: ExtendedFloatingActionButton? = null
 	private var actionMode: ActionMode? = null
 
 	init {
 		setHasOptionsMenu(true)
+	}
+
+	override fun showEmpty() {
+		super.showEmpty()
+		binding.emptyDataView.show(R.string.empty_downloads_message)
 	}
 
 	private fun startSelectionAction(): Boolean {
@@ -84,8 +82,8 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 		}
 	}
 
-	override fun setupFastAdapter() {
-		fastAdapter.selectExtension {
+	override fun FastAdapter<DownloadUI>.setupFastAdapter() {
+		selectExtension {
 			isSelectable = true
 			multiSelect = true
 			selectOnLongClick = true
@@ -101,9 +99,9 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 				if (size == 1) startSelectionAction() else if (size == 0) actionMode?.finish()
 			}
 		}
-		fastAdapter.setOnPreClickListener FastAdapterClick@{ _, _, item, position ->
+		setOnPreClickListener FastAdapterClick@{ _, _, item, position ->
 			// Handles one click select when in selection mode
-			fastAdapter.selectExtension {
+			selectExtension {
 				if (selectedItems.isNotEmpty()) {
 					if (!item.isSelected) {
 						select(
@@ -137,7 +135,7 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 	}
 
 	private fun togglePause() {
-		if (viewModel.isOnline()) viewModel.togglePause() else toast(R.string.you_not_online)
+		if (viewModel.isOnline()) viewModel.togglePause() else displayOfflineSnackBar(R.string.controller_downloads_snackbar_offline_no_download)
 	}
 
 	override fun onViewCreated(view: View) {
@@ -157,7 +155,6 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 	}
 
 	override fun handleErrorResult(e: HResult.Error) {
-		super.handleErrorResult(e)
 		viewModel.reportError(e)
 	}
 
@@ -233,60 +230,12 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 	}
 
 	private fun invertSelection() {
-		fastAdapter.recursive(object : AdapterPredicate<DownloadUI> {
-			override fun apply(
-				lastParentAdapter: IAdapter<DownloadUI>,
-				lastParentPosition: Int,
-				item: DownloadUI,
-				position: Int
-			): Boolean {
-				if (item.isSelected) {
-					fastAdapter.getSelectExtension().deselect(item)
-				} else {
-					fastAdapter.getSelectExtension().select(
-						adapter = lastParentAdapter,
-						item = item,
-						position = RecyclerView.NO_POSITION,
-						fireEvent = false,
-						considerSelectableFlag = true
-					)
-				}
-				return false
-			}
-		}, false)
-		fastAdapter.notifyDataSetChanged()
+		fastAdapter.invertSelection()
 	}
 
+
 	private fun selectBetween() {
-		fastAdapter.selectExtension {
-			val selectedItems = fastAdapter.getSelectExtension().selectedItems
-			val adapterList = itemAdapter.adapterItems
-			if (adapterList.isEmpty()) {
-				launchUI { toast(R.string.chapter_select_between_error_empty_adapter) }
-				return
-			}
-
-			val first = adapterList.indexOfFirst { it.chapterID == selectedItems.first().chapterID }
-			val last = adapterList.indexOfFirst { it.chapterID == selectedItems.last().chapterID }
-
-			if (first == -1) return
-			if (last == -1) return
-
-			val smallest: Int
-			val largest: Int
-			when {
-				first > last -> {
-					largest = first
-					smallest = last
-				}
-				else -> {
-					smallest = first
-					largest = last
-				}
-			}
-			adapterList.subList(smallest, largest).map { fastAdapter.getPosition(it) }
-				.let { launchUI { select(it) } }
-		}
+		fastAdapter.selectBetween(itemAdapter)
 	}
 
 	private inner class SelectionActionMode : ActionMode.Callback {
@@ -353,6 +302,4 @@ class DownloadsController : BottomMenuBasicFastAdapterRecyclerController<Downloa
 			fastAdapter.getSelectExtension().deselect()
 		}
 	}
-
-	override var pushController: (Controller) -> Unit = {}
 }

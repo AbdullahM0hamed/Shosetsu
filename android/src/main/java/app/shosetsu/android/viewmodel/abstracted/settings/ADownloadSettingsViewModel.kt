@@ -24,4 +24,7 @@ import app.shosetsu.common.domain.repositories.base.ISettingsRepository
  * 31 / 08 / 2020
  */
 abstract class ADownloadSettingsViewModel(iSettingsRepository: ISettingsRepository) :
-	ASubSettingsViewModel(iSettingsRepository)
+	ASubSettingsViewModel(iSettingsRepository) {
+	abstract var downloadWorkerSettingsChanged: Boolean
+	abstract fun restartDownloadWorker()
+}

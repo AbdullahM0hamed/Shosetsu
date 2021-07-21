@@ -4,12 +4,12 @@ import androidx.lifecycle.LiveData
 import app.shosetsu.android.common.ext.launchIO
 import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.domain.usecases.IsOnlineUseCase
-import app.shosetsu.android.domain.usecases.StartDownloadWorkerUseCase
 import app.shosetsu.android.domain.usecases.delete.DeleteDownloadUseCase
 import app.shosetsu.android.domain.usecases.load.LoadDownloadsUseCase
+import app.shosetsu.android.domain.usecases.start.StartDownloadWorkerUseCase
 import app.shosetsu.android.domain.usecases.update.UpdateDownloadUseCase
 import app.shosetsu.android.view.uimodels.model.DownloadUI
-import app.shosetsu.android.viewmodel.abstracted.IDownloadsViewModel
+import app.shosetsu.android.viewmodel.abstracted.ADownloadsViewModel
 import app.shosetsu.common.consts.settings.SettingKey.IsDownloadPaused
 import app.shosetsu.common.domain.repositories.base.ISettingsRepository
 import app.shosetsu.common.dto.*
@@ -49,7 +49,7 @@ class DownloadsViewModel(
 	private val settings: ISettingsRepository,
 	private var isOnlineUseCase: IsOnlineUseCase,
 	private val reportExceptionUseCase: ReportExceptionUseCase
-) : IDownloadsViewModel() {
+) : ADownloadsViewModel() {
 
 	private fun List<DownloadUI>.sort() = sortedWith(compareBy<DownloadUI> {
 		it.status == DownloadStatus.ERROR
@@ -84,7 +84,6 @@ class DownloadsViewModel(
 	}
 
 	override fun togglePause() {
-		if (!isOnline()) return
 		launchIO {
 			settings.getBoolean(IsDownloadPaused).handle { isPaused ->
 				settings.setBoolean(IsDownloadPaused, !isPaused)

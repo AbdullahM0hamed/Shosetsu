@@ -25,18 +25,18 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/version" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/version_tag"
                 android:layout_width="match_parent"
-                android:alpha="@integer/sub_text_float"
                 android:layout_height="wrap_content"
+                android:alpha="@integer/sub_text_float"
                 android:text="@string/todo"
                 android:textSize="@dimen/sub_text_size" />
         </LinearLayout>
@@ -57,7 +57,7 @@
         app:contentPadding="16dp"
         app:strokeWidth="0dp">
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
@@ -93,14 +93,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/website" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:alpha="@integer/sub_text_float"
@@ -131,14 +131,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/github" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:alpha="@integer/sub_text_float"
@@ -168,14 +168,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/extensions" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:alpha="@integer/sub_text_float"
@@ -205,14 +205,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/discord" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:alpha="@integer/sub_text_float"
@@ -242,14 +242,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
                 android:gravity="center_vertical"
                 android:text="@string/patreon" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:alpha="@integer/sub_text_float"
@@ -259,7 +259,7 @@
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/source_licenses"
+        android:id="@+id/source_licenses_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="0dp"
@@ -273,7 +273,7 @@
         app:contentPadding="16dp"
         app:strokeWidth="0dp">
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
@@ -281,5 +281,27 @@
             android:text="@string/source_licenses" />
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/disclaimer_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="0dp"
+        android:background="@android:color/transparent"
+        android:backgroundTint="@android:color/transparent"
+        android:elevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="0dp"
+        app:cardForegroundColor="@android:color/transparent"
+        app:contentPadding="16dp"
+        app:strokeWidth="0dp">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:text="@string/disclaimer" />
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

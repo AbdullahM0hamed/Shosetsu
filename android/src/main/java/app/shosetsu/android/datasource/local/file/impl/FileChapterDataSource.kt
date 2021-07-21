@@ -8,6 +8,7 @@ import app.shosetsu.common.dto.handle
 import app.shosetsu.common.dto.transform
 import app.shosetsu.common.enums.ExternalFileDir.DOWNLOADS
 import app.shosetsu.common.providers.file.base.IFileSystemProvider
+import app.shosetsu.lib.Novel
 
 /*
  * This file is part of shosetsu.
@@ -45,16 +46,16 @@ class FileChapterDataSource(
 		)
 	}
 
-
 	/** Makes path */
-	private fun makePath(ce: ChapterEntity): String =
-		"/chapters/${ce.extensionID}/${ce.novelID}/${ce.id}.txt"
+	private fun makePath(ce: ChapterEntity, chapterType: Novel.ChapterType): String =
+		"/chapters/${ce.extensionID}/${ce.novelID}/${ce.id}.${chapterType.fileExtension}"
 
-	override suspend fun saveChapterPassageToStorage(
+	override suspend fun save(
 		chapterEntity: ChapterEntity,
-		passage: String,
+		chapterType: Novel.ChapterType,
+		passage: ByteArray,
 	): HResult<*> {
-		val path = makePath(chapterEntity)
+		val path = makePath(chapterEntity, chapterType)
 		return iFileSystemProvider.createDirectory(
 			DOWNLOADS,
 			path.substringBeforeLast("/")
@@ -67,9 +68,16 @@ class FileChapterDataSource(
 		}
 	}
 
-	override suspend fun loadChapterPassageFromStorage(chapterEntity: ChapterEntity): HResult<String> =
-		iFileSystemProvider.readFile(DOWNLOADS, makePath(chapterEntity))
+	override suspend fun load(
+		chapterEntity: ChapterEntity,
+		chapterType: Novel.ChapterType,
+	): HResult<ByteArray> =
+		iFileSystemProvider.readFile(DOWNLOADS, makePath(chapterEntity, chapterType))
 
-	override suspend fun deleteChapter(chapterEntity: ChapterEntity): HResult<*> =
-		iFileSystemProvider.deleteFile(DOWNLOADS, makePath(chapterEntity))
+	override suspend fun delete(
+		chapterEntity: ChapterEntity,
+		chapterType: Novel.ChapterType
+	): HResult<*> =
+		iFileSystemProvider.deleteFile(DOWNLOADS, makePath(chapterEntity, chapterType))
+
 }

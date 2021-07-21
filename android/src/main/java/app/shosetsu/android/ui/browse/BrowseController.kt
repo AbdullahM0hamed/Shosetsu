@@ -17,26 +17,27 @@ package app.shosetsu.android.ui.browse
  * along with shosetsu.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import android.content.Intent
+import android.content.Intent.ACTION_VIEW
+import android.net.Uri
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.widget.SearchView
 import androidx.core.os.bundleOf
-import androidx.recyclerview.widget.RecyclerView
 import app.shosetsu.android.common.consts.BundleKeys.BUNDLE_EXTENSION
 import app.shosetsu.android.common.ext.*
 import app.shosetsu.android.ui.catalogue.CatalogController
 import app.shosetsu.android.ui.extensionsConfigure.ConfigureExtension
-import app.shosetsu.android.view.controller.FastAdapterRecyclerController.BasicFastAdapterRecyclerController
-import app.shosetsu.android.view.controller.base.PushCapableController
+import app.shosetsu.android.view.controller.FastAdapterRefreshableRecyclerController
 import app.shosetsu.android.view.uimodels.model.ExtensionUI
-import app.shosetsu.android.viewmodel.abstracted.IExtensionsViewModel
+import app.shosetsu.android.view.widget.EmptyDataView
+import app.shosetsu.android.viewmodel.abstracted.ABrowseViewModel
+import app.shosetsu.common.consts.REPOSITORY_HELP_URL
 import app.shosetsu.common.dto.HResult
-import com.bluelinelabs.conductor.Controller
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.mikepenz.fastadapter.FastAdapter
-import com.mikepenz.fastadapter.listeners.ClickEventHook
 
 /**
  * shosetsu
@@ -44,91 +45,89 @@ import com.mikepenz.fastadapter.listeners.ClickEventHook
  *
  * @author github.com/doomsdayrs
  */
-class BrowseController : BasicFastAdapterRecyclerController<ExtensionUI>(),
-	PushCapableController {
+class BrowseController : FastAdapterRefreshableRecyclerController<ExtensionUI>() {
 	override val viewTitleRes: Int = R.string.browse
 
 	init {
 		setHasOptionsMenu(true)
 	}
 
-	override var pushController: (Controller) -> Unit = {}
-
-
 	/***/
-	val viewModel: IExtensionsViewModel by viewModel()
+	val viewModel: ABrowseViewModel by viewModel()
 
 	override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-		inflater.inflate(R.menu.toolbar_extensions, menu)
-		(menu.findItem(R.id.catalogues_search).actionView as SearchView)
-			.setOnQueryTextListener(BrowseSearchQuery(pushController))
+		inflater.inflate(R.menu.toolbar_browse, menu)
+		(menu.findItem(R.id.search).actionView as SearchView)
+			.setOnQueryTextListener(BrowseSearchQuery { router.shosetsuPush(it) })
 	}
 
-	override fun setupFastAdapter() {
-		fastAdapter.setOnClickListener { _, _, item, _ ->
-			if (item.installed)
-				if (viewModel.isOnline()) {
-					pushController(
+	private fun installExtension(extension: ExtensionUI) {
+		var installed = false
+		var update = false
+		if (extension.installed && extension.isExtEnabled) {
+			installed = true
+			if (extension.updateState() == ExtensionUI.State.UPDATE) update = true
+		}
+
+		if (!installed || update) {
+			if (viewModel.isOnline()) {
+				viewModel.installExtension(extension)
+			} else {
+				displayOfflineSnackBar(R.string.controller_browse_snackbar_offline_no_install_extension)
+			}
+		}
+	}
+
+	override fun FastAdapter<ExtensionUI>.setupFastAdapter() {
+		setOnClickListener { _, _, item, _ ->
+			// First check if the user is online or not
+			if (viewModel.isOnline()) {
+				// If the extension is installed, push to it, otherwise prompt the user to install
+				if (item.installed) {
+					router.shosetsuPush(
 						CatalogController(
 							bundleOf(
 								BUNDLE_EXTENSION to item.id
 							)
 						)
 					)
-				} else context?.toast(R.string.you_not_online)
-			else toast(R.string.ext_not_installed)
+				} else makeSnackBar(R.string.controller_browse_snackbar_not_installed)?.setAction(R.string.install) {
+					installExtension(item)
+				}?.show()
+			} else displayOfflineSnackBar(R.string.controller_browse_snackbar_offline_no_extension)
 			true
 		}
 
-		fastAdapter.addEventHook(object : ClickEventHook<ExtensionUI>() {
-			override fun onBind(viewHolder: RecyclerView.ViewHolder): View? =
-				if (viewHolder is ExtensionUI.ViewHolder) viewHolder.binding.button else null
 
-			override fun onClick(
-				v: View,
-				position: Int,
-				fastAdapter: FastAdapter<ExtensionUI>,
-				item: ExtensionUI
-			) {
-				var installed = false
-				var update = false
-				if (item.installed && item.isExtEnabled) {
-					installed = true
-					if (item.updateState() == ExtensionUI.State.UPDATE) update = true
-				}
+		hookClickEvent(
+			bind = { it: ExtensionUI.ViewHolder -> it.binding.installButton }
+		) { _, _, _, item ->
+			installExtension(item)
+		}
 
-				if (!installed || update) viewModel.installExtension(item)
-			}
-		})
-
-		fastAdapter.addEventHook(object : ClickEventHook<ExtensionUI>() {
-			override fun onBind(viewHolder: RecyclerView.ViewHolder): View? =
-				if (viewHolder is ExtensionUI.ViewHolder) viewHolder.binding.settings else null
-
-			override fun onClick(
-				v: View,
-				position: Int,
-				fastAdapter: FastAdapter<ExtensionUI>,
-				item: ExtensionUI
-			) {
-				pushController(ConfigureExtension(bundleOf(BUNDLE_EXTENSION to item.id)))
-			}
-
-		})
+		hookClickEvent(
+			bind = { it: ExtensionUI.ViewHolder -> it.binding.settings }
+		) { _, _, _, item ->
+			router.shosetsuPush(ConfigureExtension(bundleOf(BUNDLE_EXTENSION to item.id)))
+		}
 	}
 
 
 	override fun showEmpty() {
 		super.showEmpty()
-		binding.emptyDataView.show("No extensions installed, Press the refresh button on the top right")
+		binding.emptyDataView.show(
+			R.string.empty_browse_message,
+			EmptyDataView.Action(R.string.empty_browse_refresh_action) {
+				onRefresh()
+			})
 	}
 
 	override fun handleErrorResult(e: HResult.Error) {
-		super.handleErrorResult(e)
 		viewModel.reportError(e)
 	}
 
 	override fun onViewCreated(view: View) {
+		super.onViewCreated(view)
 		showEmpty()
 		viewModel.liveData.observe(this) { handleRecyclerUpdate(it) }
 	}
@@ -145,13 +144,25 @@ class BrowseController : BasicFastAdapterRecyclerController<ExtensionUI>(),
 	}
 
 	override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-		R.id.refresh -> {
-			if (viewModel.isOnline())
-				viewModel.refreshRepository()
-			else toast(R.string.you_not_online)
+		R.id.help -> {
+			openHelpMenu()
 			true
 		}
-		R.id.catalogues_search -> true
+		R.id.search -> true
+		R.id.browse_import -> {
+			makeSnackBar(R.string.regret)?.show()
+			true
+		}
 		else -> false
+	}
+
+	private fun openHelpMenu() {
+		startActivity(Intent(ACTION_VIEW, Uri.parse(REPOSITORY_HELP_URL)))
+	}
+
+	override fun onRefresh() {
+		if (viewModel.isOnline())
+			viewModel.refreshRepository()
+		else displayOfflineSnackBar(R.string.controller_browse_snackbar_offline_no_update_extension)
 	}
 }

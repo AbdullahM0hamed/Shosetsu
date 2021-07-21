@@ -4,20 +4,23 @@ import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.domain.usecases.*
 import app.shosetsu.android.domain.usecases.delete.DeleteChapterPassageUseCase
 import app.shosetsu.android.domain.usecases.delete.DeleteDownloadUseCase
+import app.shosetsu.android.domain.usecases.delete.DeleteRepositoryUseCase
 import app.shosetsu.android.domain.usecases.get.*
 import app.shosetsu.android.domain.usecases.load.*
 import app.shosetsu.android.domain.usecases.open.OpenInBrowserUseCase
 import app.shosetsu.android.domain.usecases.open.OpenInWebviewUseCase
 import app.shosetsu.android.domain.usecases.settings.LoadChaptersResumeFirstUnreadUseCase
 import app.shosetsu.android.domain.usecases.settings.LoadNavigationStyleUseCase
+import app.shosetsu.android.domain.usecases.settings.LoadRequireDoubleBackUseCase
 import app.shosetsu.android.domain.usecases.settings.SetNovelUITypeUseCase
+import app.shosetsu.android.domain.usecases.start.*
 import app.shosetsu.android.domain.usecases.toast.StringToastUseCase
 import app.shosetsu.android.domain.usecases.toast.ToastErrorUseCase
 import app.shosetsu.android.domain.usecases.update.*
-import org.kodein.di.Kodein
-import org.kodein.di.generic.bind
-import org.kodein.di.generic.instance
-import org.kodein.di.generic.provider
+import org.kodein.di.DI
+import org.kodein.di.bind
+import org.kodein.di.instance
+import org.kodein.di.provider
 
 /*
  * This file is part of shosetsu.
@@ -41,7 +44,7 @@ import org.kodein.di.generic.provider
  * shosetsu
  * 01 / 05 / 2020
  */
-val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
+val useCaseModule: DI.Module = DI.Module("useCase") {
 
 	bind<LoadDownloadsUseCase>() with provider { LoadDownloadsUseCase(instance()) }
 
@@ -50,30 +53,38 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 	bind<SearchBookMarkedNovelsUseCase>() with provider { SearchBookMarkedNovelsUseCase(instance()) }
 
 
-	bind<LoadExtensionsUIUseCase>() with provider { LoadExtensionsUIUseCase(instance()) }
+	bind<LoadExtensionsUIUseCase>() with provider { LoadExtensionsUIUseCase(instance(),instance()) }
 
 	bind<LoadUpdatesUseCase>() with provider { LoadUpdatesUseCase(instance()) }
 
 	bind<RefreshRepositoryUseCase>() with provider { RefreshRepositoryUseCase(instance()) }
 
-	bind<InitializeExtensionsUseCase>() with provider {
-		InitializeExtensionsUseCase(instance(), instance(), instance(), instance())
+	bind<StartRepositoryUpdateManagerUseCase>() with provider {
+		StartRepositoryUpdateManagerUseCase(instance())
 	}
 
-	bind<InstallExtensionUIUseCase>() with provider { InstallExtensionUIUseCase(instance()) }
+	bind<InstallExtensionUIUseCase>() with provider {
+		InstallExtensionUIUseCase(
+			instance(),
+			instance()
+		)
+	}
 
 	bind<UpdateNovelUseCase>() with provider { UpdateNovelUseCase(instance()) }
 
 	bind<GetExtensionUseCase>() with provider { GetExtensionUseCase(instance()) }
 
 	bind<NovelBackgroundAddUseCase>() with provider {
-		NovelBackgroundAddUseCase(instance(), instance())
+		NovelBackgroundAddUseCase(instance(), instance(), instance())
 	}
 
 	bind<GetNovelUIUseCase>() with provider { GetNovelUIUseCase(instance(), instance()) }
 
-	bind<GetNovelUseCase>() with provider {
-		GetNovelUseCase(instance(), instance(), instance(), instance(), instance(), instance())
+	bind<GetRemoteNovelUseCase>() with provider {
+		GetRemoteNovelUseCase(instance(), instance(), instance(), instance())
+	}
+	bind<StartDownloadWorkerAfterUpdateUseCase>() with provider {
+		StartDownloadWorkerAfterUpdateUseCase(instance(), instance(), instance())
 	}
 
 	bind<GetCatalogueListingDataUseCase>() with provider {
@@ -85,7 +96,14 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 	bind<UpdateChapterUseCase>() with provider { UpdateChapterUseCase(instance()) }
 
 	bind<UpdateReaderChapterUseCase>() with provider { UpdateReaderChapterUseCase(instance()) }
-	bind<GetReaderChaptersUseCase>() with provider { GetReaderChaptersUseCase(instance()) }
+	bind<GetReaderChaptersUseCase>() with provider {
+		GetReaderChaptersUseCase(
+			instance(),
+			instance(),
+			instance(),
+			instance()
+		)
+	}
 
 	bind<GetChapterPassageUseCase>() with provider {
 		GetChapterPassageUseCase(instance(), instance())
@@ -94,10 +112,15 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 	bind<DownloadChapterPassageUseCase>() with provider {
 		DownloadChapterPassageUseCase(instance(), instance(), instance())
 	}
-	bind<DeleteChapterPassageUseCase>() with provider { DeleteChapterPassageUseCase(instance()) }
+	bind<DeleteChapterPassageUseCase>() with provider {
+		DeleteChapterPassageUseCase(
+			instance(),
+			instance()
+		)
+	}
 
 	bind<StartDownloadWorkerUseCase>() with provider {
-		StartDownloadWorkerUseCase(instance())
+		StartDownloadWorkerUseCase(instance(), instance())
 	}
 	bind<StartUpdateWorkerUseCase>() with provider {
 		StartUpdateWorkerUseCase(instance())
@@ -140,7 +163,15 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 	}
 	bind<ConvertNCToCNUIUseCase>() with provider { ConvertNCToCNUIUseCase() }
 	bind<LoadSearchRowUIUseCase>() with provider { LoadSearchRowUIUseCase((instance())) }
-	bind<GetExtensionSettingsUseCase>() with provider { GetExtensionSettingsUseCase(instance()) }
+	bind<GetExtensionSettingsUseCase>() with provider {
+		GetExtensionSettingsUseCase(
+			instance(),
+			instance(),
+			instance(),
+			instance(),
+			instance()
+		)
+	}
 	bind<GetExtensionUIUseCase>() with provider { GetExtensionUIUseCase(instance()) }
 	bind<LoadRepositoriesUseCase>() with provider { LoadRepositoriesUseCase(instance()) }
 	bind<LoadReaderThemes>() with provider {
@@ -152,6 +183,7 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 
 	bind<ReportExceptionUseCase>() with provider { ReportExceptionUseCase(instance(), instance()) }
 	bind<LoadNavigationStyleUseCase>() with provider { LoadNavigationStyleUseCase(instance()) }
+	bind<LoadRequireDoubleBackUseCase>() with provider { LoadRequireDoubleBackUseCase(instance()) }
 
 	bind<LoadLiveAppThemeUseCase>() with provider { LoadLiveAppThemeUseCase(instance()) }
 
@@ -181,5 +213,64 @@ val useCaseModule: Kodein.Module = Kodein.Module("useCase") {
 		LoadDeletePreviousChapterUseCase(instance())
 	}
 
+	bind<PurgeNovelCacheUseCase>() with provider {
+		PurgeNovelCacheUseCase(instance())
+	}
 
+	bind<StartBackupWorkerUseCase>() with provider {
+		StartBackupWorkerUseCase(instance(), instance())
+	}
+	bind<LoadInternalBackupNamesUseCase>() with provider {
+		LoadInternalBackupNamesUseCase(instance())
+	}
+
+	bind<StartRestoreWorkerUseCase>() with provider {
+		StartRestoreWorkerUseCase(instance())
+	}
+
+	bind<AddRepositoryUseCase>() with provider {
+		AddRepositoryUseCase(instance())
+	}
+	bind<DeleteRepositoryUseCase>() with provider {
+		DeleteRepositoryUseCase(instance())
+	}
+	bind<UpdateRepositoryUseCase>() with provider {
+		UpdateRepositoryUseCase(instance())
+	}
+	bind<GetReaderSettingUseCase>() with provider {
+		GetReaderSettingUseCase(instance(), instance())
+	}
+
+	bind<UpdateReaderSettingUseCase>() with provider {
+		UpdateReaderSettingUseCase(instance())
+	}
+
+	bind<LoadLibraryFilterSettingsUseCase>() with provider {
+		LoadLibraryFilterSettingsUseCase(instance())
+	}
+
+
+	bind<UpdateLibraryFilterSettingsUseCase>() with provider {
+		UpdateLibraryFilterSettingsUseCase(instance())
+	}
+
+	bind<GetExtListingNamesUseCase>() with provider {
+		GetExtListingNamesUseCase(instance())
+	}
+
+	bind<UpdateExtSelectedListing>() with provider {
+		UpdateExtSelectedListing(instance())
+	}
+
+	bind<GetExtSelectedListingUseCase>() with provider {
+		GetExtSelectedListingUseCase(instance())
+	}
+
+	bind<UpdateExtensionSettingUseCase>() with provider {
+		UpdateExtensionSettingUseCase(instance(), instance())
+	}
+
+	bind<ForceInsertRepositoryUseCase>() with provider {
+		ForceInsertRepositoryUseCase(instance())
+	}
 }

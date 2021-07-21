@@ -60,6 +60,14 @@ interface IExtensionRepoRepository {
 	 */
 	suspend fun loadRepositories(): HResult<List<RepositoryEntity>>
 
+
+	/**
+	 * Identical to [loadRepositories] except filters out all [RepositoryEntity]
+	 *  where [RepositoryEntity.isEnabled]=false
+	 * @see loadRepositories
+	 */
+	suspend fun loadEnabledRepos(): HResult<List<RepositoryEntity>>
+
 	/**
 	 * Loads all repositories present
 	 *
@@ -79,4 +87,7 @@ interface IExtensionRepoRepository {
 
 	suspend fun remove(entity: RepositoryEntity): HResult<*>
 
+	suspend fun update(entity: RepositoryEntity): HResult<*>
+
+	suspend fun insert(entity: RepositoryEntity): HResult<*>
 }

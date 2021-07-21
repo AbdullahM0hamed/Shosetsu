@@ -3,12 +3,18 @@ package app.shosetsu.android.viewmodel.impl
 import androidx.lifecycle.LiveData
 import app.shosetsu.android.common.ext.launchIO
 import app.shosetsu.android.domain.ReportExceptionUseCase
-import app.shosetsu.android.domain.usecases.*
+import app.shosetsu.android.domain.usecases.CanAppSelfUpdateUseCase
+import app.shosetsu.android.domain.usecases.IsOnlineUseCase
+import app.shosetsu.android.domain.usecases.ShareUseCase
 import app.shosetsu.android.domain.usecases.load.LoadAppUpdateFlowLiveUseCase
 import app.shosetsu.android.domain.usecases.load.LoadAppUpdateUseCase
 import app.shosetsu.android.domain.usecases.load.LoadLiveAppThemeUseCase
 import app.shosetsu.android.domain.usecases.settings.LoadNavigationStyleUseCase
-import app.shosetsu.android.viewmodel.abstracted.IMainViewModel
+import app.shosetsu.android.domain.usecases.settings.LoadRequireDoubleBackUseCase
+import app.shosetsu.android.domain.usecases.start.StartAppUpdateInstallWorkerUseCase
+import app.shosetsu.android.domain.usecases.start.StartDownloadWorkerUseCase
+import app.shosetsu.android.viewmodel.abstracted.AMainViewModel
+import app.shosetsu.common.consts.settings.SettingKey
 import app.shosetsu.common.domain.model.local.AppUpdateEntity
 import app.shosetsu.common.dto.HResult
 import app.shosetsu.common.dto.handle
@@ -43,18 +49,28 @@ class MainViewModel(
 	private val isOnlineUseCase: IsOnlineUseCase,
 	private val shareUseCase: ShareUseCase,
 	private val loadNavigationStyleUseCase: LoadNavigationStyleUseCase,
+	private val loadRequireDoubleBackUseCase: LoadRequireDoubleBackUseCase,
 	private val reportExceptionUseCase: ReportExceptionUseCase,
 	private var loadLiveAppThemeUseCase: LoadLiveAppThemeUseCase,
 	private val startInstallWorker: StartAppUpdateInstallWorkerUseCase,
 	private val canAppSelfUpdateUseCase: CanAppSelfUpdateUseCase,
 	private val loadAppUpdateUseCase: LoadAppUpdateUseCase
-) : IMainViewModel() {
-	private var navigationStyle = 0
+) : AMainViewModel() {
+	private var _navigationStyle = 0
+	private var _requireDoubleBackToExit = SettingKey.RequireDoubleBackToExit.default
+
+	override val requireDoubleBackToExit: Boolean
+		get() = _requireDoubleBackToExit
 
 	init {
 		launchIO {
 			loadNavigationStyleUseCase().collect {
-				navigationStyle = it
+				_navigationStyle = it
+			}
+		}
+		launchIO {
+			loadRequireDoubleBackUseCase().collect {
+				_requireDoubleBackToExit = it
 			}
 		}
 	}
@@ -64,7 +80,9 @@ class MainViewModel(
 	}
 
 	override fun startDownloadWorker() {
-		startDownloadWorkerUseCase()
+		launchIO {
+			startDownloadWorkerUseCase()
+		}
 	}
 
 	override fun reportError(error: HResult.Error, isSilent: Boolean) {
@@ -74,12 +92,14 @@ class MainViewModel(
 	override fun startUpdateCheck(): LiveData<HResult<AppUpdateEntity>> =
 		loadAppUpdateFlowLiveUseCase().asIOLiveData()
 
-	override fun navigationStyle(): Int = navigationStyle
+	override val navigationStyle: Int
+		get() = _navigationStyle
 
 	override fun isOnline(): Boolean = isOnlineUseCase()
 
 	@ExperimentalCoroutinesApi
-	override fun appTheme(): LiveData<AppThemes> = loadLiveAppThemeUseCase().asIOLiveData()
+	override val appThemeLiveData: LiveData<AppThemes>
+		get() = loadLiveAppThemeUseCase().asIOLiveData()
 
 	override fun handleAppUpdate() {
 		canAppSelfUpdateUseCase().handle(

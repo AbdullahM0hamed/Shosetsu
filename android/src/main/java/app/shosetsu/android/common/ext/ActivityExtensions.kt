@@ -1,6 +1,7 @@
 package app.shosetsu.android.common.ext
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -41,7 +42,7 @@ fun Activity.openInBrowser(url: Uri): Unit = startActivity(Intent(Intent.ACTION_
 fun Activity.openInBrowser(url: String): Unit = openInBrowser(Uri.parse(url))
 
 fun Activity.openInWebView(url: String) {
-	startActivity(Intent(this, WebViewApp::class.java) {
+	startActivity(intent(this, WebViewApp::class.java) {
 		bundleOf(
 			BundleKeys.BUNDLE_URL to url,
 			BundleKeys.BUNDLE_ACTION to WebViewApp.Actions.VIEW.action
@@ -62,7 +63,7 @@ fun Activity.openInWebView(url: String) {
 fun Activity.openChapter(cUI: ChapterUI): Unit = openChapter(cUI.id, cUI.novelID)
 
 fun Activity.openChapter(chapterID: Int, novelID: Int) {
-	startActivity(Intent(this, ChapterReader::class.java) {
+	startActivity(intent(this, ChapterReader::class.java) {
 		bundleOf(
 			BUNDLE_CHAPTER_ID to chapterID,
 			BUNDLE_NOVEL_ID to novelID
@@ -70,7 +71,7 @@ fun Activity.openChapter(chapterID: Int, novelID: Int) {
 	})
 }
 
-fun Activity.readAsset(name: String): String {
+fun Context.readAsset(name: String): String {
 	val string = StringBuilder()
 	try {
 		val reader = BufferedReader(InputStreamReader(assets.open(name)))

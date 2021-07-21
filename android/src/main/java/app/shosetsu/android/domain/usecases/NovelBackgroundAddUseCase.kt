@@ -1,9 +1,10 @@
 package app.shosetsu.android.domain.usecases
 
-import app.shosetsu.android.domain.usecases.get.GetNovelUseCase
+import app.shosetsu.android.domain.usecases.get.GetRemoteNovelUseCase
 import app.shosetsu.android.domain.usecases.update.UpdateNovelUseCase
-import app.shosetsu.common.domain.model.local.NovelEntity
+import app.shosetsu.common.domain.repositories.base.INovelsRepository
 import app.shosetsu.common.dto.HResult
+import app.shosetsu.common.dto.transform
 
 /*
  * This file is part of shosetsu.
@@ -25,21 +26,21 @@ import app.shosetsu.common.dto.HResult
 /**
  * shosetsu
  * 15 / 05 / 2020
+ *
+ * Add a novel in the background
+ * This will not load chapters of the novel
+ * This will bookmark the novel after loading it up
  */
 class NovelBackgroundAddUseCase(
-	private val loadNovelUseCase: GetNovelUseCase,
+	private val loadRemoteNovelUseCase: GetRemoteNovelUseCase,
 	private val updateNovelEntityUseCase: UpdateNovelUseCase,
+	private val novelsRepository: INovelsRepository
 ) {
-	suspend operator fun invoke(novelID: Int): HResult<*> =
-		loadNovelUseCase(novelID, false).also {
-			if (it is HResult.Success<*>) {
-				if (it.data is NovelEntity) {
-					updateNovelEntityUseCase(
-						(it.data as NovelEntity).copy(
-							bookmarked = true
-						)
-					)
-				}
+	suspend operator fun invoke(novelID: Int): HResult<*> {
+		return loadRemoteNovelUseCase(novelID, false).transform {
+			novelsRepository.getNovel(novelID).transform { entity ->
+				updateNovelEntityUseCase(entity.copy(bookmarked = true))
 			}
 		}
+	}
 }

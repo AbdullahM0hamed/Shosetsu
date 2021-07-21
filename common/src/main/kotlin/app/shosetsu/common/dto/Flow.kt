@@ -2,6 +2,7 @@ package app.shosetsu.common.dto
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 
 /*
@@ -23,15 +24,38 @@ import kotlinx.coroutines.flow.mapLatest
 
 
 /**
+ * Represents a flow of [HResult] of the specified type
+ */
+typealias HFlow<T> = Flow<HResult<T>>
+typealias HListFlow<T> = Flow<HList<T>>
+
+/**
  * Maps the latest result of a Flow<HResult<*>>
  */
 @ExperimentalCoroutinesApi
-inline fun <reified I, O> Flow<HResult<I>>.mapLatestResult(
+inline fun <reified I, O> HFlow<I>.mapLatestResult(
 	noinline onLoading: suspend () -> HResult<O> = { loading() },
 	noinline onEmpty: suspend () -> HResult<O> = { emptyResult() },
 	noinline onError: suspend (HResult.Error) -> HResult<O> = { it },
 	noinline onSuccess: suspend (I) -> HResult<O>
-): Flow<HResult<O>> = mapLatest { result ->
+): HFlow<O> = mapLatest { result ->
+	result.transform(
+		onLoading = { onLoading() },
+		onEmpty = { onEmpty() },
+		onError = { onError(it) },
+		transformSuccess = { onSuccess(it) }
+	)
+}
+
+/**
+ * Maps each result of a Flow<HResult<*>>
+ */
+inline fun <reified I, O> HFlow<I>.mapResult(
+	noinline onLoading: suspend () -> HResult<O> = { loading() },
+	noinline onEmpty: suspend () -> HResult<O> = { emptyResult() },
+	noinline onError: suspend (HResult.Error) -> HResult<O> = { it },
+	noinline onSuccess: suspend (I) -> HResult<O>
+): HFlow<O> = map { result ->
 	result.transform(
 		onLoading = { onLoading() },
 		onEmpty = { onEmpty() },
@@ -53,16 +77,24 @@ inline fun <reified I : Convertible<O>, reified O : Any> Flow<List<I>>.mapLatest
 
 /** Converts each value emitted by the [Flow] as an [HResult.Success] */
 @ExperimentalCoroutinesApi
-inline fun <reified I> Flow<I>.mapLatestToSuccess(): Flow<HResult<I>> =
+inline fun <reified I> Flow<I>.mapLatestToSuccess(): HFlow<I> =
 	mapLatest { successResult(it) }
+
+/** Converts each value emitted by the [Flow] as an [HResult.Success] */
+inline fun <reified I> Flow<I>.mapToSuccess(): HFlow<I> =
+	map { successResult(it) }
 
 /** Converts a [HResult.Success] of a [List] of [Convertible]s from its [I] form to its [O] form */
 @ExperimentalCoroutinesApi
-inline fun <reified I : Convertible<O>, reified O : Any> Flow<HResult<List<I>>>.mapLatestResultListTo()
-		: Flow<HResult<List<O>>> = mapLatest { it.convertList() }
+inline fun <reified I : Convertible<O>, reified O : Any> HFlow<List<I>>.mapLatestResultListTo()
+		: HFlow<List<O>> = mapLatest { it.convertList() }
 
 
 /** Converts a [HResult.Success] of a [Convertible] from its [I] form to its [O] form */
 @ExperimentalCoroutinesApi
-inline fun <reified I : Convertible<O>, reified O : Any> Flow<HResult<I>>.mapLatestResultTo()
-		: Flow<HResult<O>> = mapLatest { it.convert() }
+inline fun <reified I : Convertible<O>, reified O : Any> HFlow<I>.mapLatestResultTo()
+		: HFlow<O> = mapLatest { it.convertToSettingItems() }
+
+/** Converts a [HResult.Success] of a [Convertible] from its [I] form to its [O] form */
+inline fun <reified I : Convertible<O>, reified O : Any> HFlow<I>.mapResultTo()
+		: HFlow<O> = map { it.convertToSettingItems() }

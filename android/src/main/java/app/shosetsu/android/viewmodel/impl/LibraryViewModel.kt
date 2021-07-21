@@ -19,30 +19,30 @@ package app.shosetsu.android.viewmodel.impl
 
 import androidx.lifecycle.LiveData
 import app.shosetsu.android.common.ext.launchIO
-import app.shosetsu.android.common.ext.logV
 import app.shosetsu.android.domain.ReportExceptionUseCase
 import app.shosetsu.android.domain.usecases.IsOnlineUseCase
-import app.shosetsu.android.domain.usecases.StartUpdateWorkerUseCase
 import app.shosetsu.android.domain.usecases.load.LoadLibraryUseCase
 import app.shosetsu.android.domain.usecases.load.LoadNovelUIColumnsHUseCase
 import app.shosetsu.android.domain.usecases.load.LoadNovelUIColumnsPUseCase
 import app.shosetsu.android.domain.usecases.load.LoadNovelUITypeUseCase
 import app.shosetsu.android.domain.usecases.settings.SetNovelUITypeUseCase
+import app.shosetsu.android.domain.usecases.start.StartUpdateWorkerUseCase
 import app.shosetsu.android.domain.usecases.update.UpdateBookmarkedNovelUseCase
 import app.shosetsu.android.view.uimodels.model.library.ABookmarkedNovelUI
-import app.shosetsu.android.viewmodel.abstracted.ILibraryViewModel
-import app.shosetsu.common.consts.settings.SettingKey.*
-import app.shosetsu.common.dto.HResult
-import app.shosetsu.common.dto.handle
-import app.shosetsu.common.dto.successResult
-import app.shosetsu.common.dto.transform
+import app.shosetsu.android.viewmodel.abstracted.ALibraryViewModel
+import app.shosetsu.common.consts.settings.SettingKey.ChapterColumnsInLandscape
+import app.shosetsu.common.consts.settings.SettingKey.ChapterColumnsInPortait
+import app.shosetsu.common.dto.*
 import app.shosetsu.common.enums.InclusionState
 import app.shosetsu.common.enums.InclusionState.EXCLUDE
 import app.shosetsu.common.enums.InclusionState.INCLUDE
 import app.shosetsu.common.enums.NovelCardType
 import app.shosetsu.common.enums.NovelSortType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.mapLatest
 import java.util.Locale.getDefault as LGD
 
 /**
@@ -61,14 +61,14 @@ class LibraryViewModel(
 	private val loadNovelUIColumnsHUseCase: LoadNovelUIColumnsHUseCase,
 	private val loadNovelUIColumnsPUseCase: LoadNovelUIColumnsPUseCase,
 	private val setNovelUITypeUseCase: SetNovelUITypeUseCase
-) : ILibraryViewModel() {
-	private var novelCardType: NovelCardType = NovelCardType.fromInt(SelectedNovelCardType.default)
+) : ALibraryViewModel() {
+
 
 	private var columnP: Int = ChapterColumnsInPortait.default
 
 	private var columnH: Int = ChapterColumnsInLandscape.default
 
-	private val librarySourceFlow: Flow<HResult<List<ABookmarkedNovelUI>>> = libraryAsCardsUseCase()
+	private val librarySourceFlow: Flow<HResult<List<ABookmarkedNovelUI>>> by lazy { libraryAsCardsUseCase() }
 
 	@ExperimentalCoroutinesApi
 	override val genresLiveData: LiveData<List<String>> by lazy {
@@ -146,20 +146,14 @@ class LibraryViewModel(
 			.asIOLiveData()
 	}
 
-	init {
-		launchIO {
-			loadNovelUIColumnsHUseCase().collectLatest {
-				columnH = it
-			}
-			loadNovelUIColumnsPUseCase().collectLatest {
-				columnP = it
-			}
-			@Suppress("EXPERIMENTAL_API_USAGE")
-			loadNovelUITypeUseCase().collectLatest {
-				novelCardType = it
-			}
-		}
+	override val columnsInH: LiveData<Int> by lazy {
+		loadNovelUIColumnsHUseCase().asIOLiveData()
 	}
+
+	override val columnsInP: LiveData<Int> by lazy {
+		loadNovelUIColumnsPUseCase().asIOLiveData()
+	}
+
 
 	/**
 	 * Removes the list for filtering from the [ABookmarkedNovelUI] with the flow
@@ -172,8 +166,8 @@ class LibraryViewModel(
 			result.handle { list ->
 				list.forEach { ui ->
 					strip(ui).forEach { key ->
-						if (!contains(key.capitalize(LGD())) && key.isNotBlank()) {
-							add(key.capitalize(LGD()))
+						if (!contains(key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(LGD()) else it.toString() }) && key.isNotBlank()) {
+							add(key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(LGD()) else it.toString() })
 						}
 					}
 				}
@@ -189,28 +183,32 @@ class LibraryViewModel(
 		flow: Flow<HashMap<String, InclusionState>>,
 		against: (ABookmarkedNovelUI) -> List<String>
 	) = combine(flow) { novelResult, filters ->
-		logV("HELLO")
 		novelResult.transform { list ->
-			logV("TRANSFORM")
 			successResult(
 				if (filters.isNotEmpty()) {
-					logV("Remapping")
 					var result = list
 					filters.forEach { (s, inclusionState) ->
 						result = when (inclusionState) {
 							INCLUDE ->
-								result.filter {
-									against(it).any { g -> g.capitalize(LGD()) == s }
+								result.filter { novelUI ->
+									against(novelUI).any { g -> g.replaceFirstChar {
+										if (it.isLowerCase()) it.titlecase(
+											LGD()
+										) else it.toString()
+									} == s }
 								}
 							EXCLUDE ->
-								result.filterNot {
-									against(it).any { g -> g.capitalize(LGD()) == s }
+								result.filterNot { novelUI ->
+									against(novelUI).any { g -> g.replaceFirstChar {
+										if (it.isLowerCase()) it.titlecase(
+											LGD()
+										) else it.toString()
+									} == s }
 								}
 						}
 					}
 					result
 				} else {
-					logV("Inital")
 					list
 				}
 			)
@@ -232,40 +230,33 @@ class LibraryViewModel(
 
 	private fun Flow<HResult<List<ABookmarkedNovelUI>>>.combineSortReverse() =
 		combine(areNovelsReversedFlow) { novelResult, reversed ->
-			novelResult.transform { list ->
-				successResult(
-					if (reversed)
-						list.reversed()
-					else list
-				)
+			novelResult.transformToSuccess { list ->
+				if (reversed)
+					list.reversed()
+				else list
 			}
 		}
 
 	private fun Flow<HResult<List<ABookmarkedNovelUI>>>.combineSortType() =
 		combine(novelSortTypeFlow) { novelResult, sortType ->
-			novelResult.transform { list ->
-				successResult(
-					when (sortType) {
-						NovelSortType.BY_TITLE -> list.sortedBy { it.title }
-						NovelSortType.BY_UNREAD_COUNT -> list.sortedBy { it.unread }
-						NovelSortType.BY_ID -> list.sortedBy { it.id }
-					}
-				)
+			novelResult.transformToSuccess { list ->
+				when (sortType) {
+					NovelSortType.BY_TITLE -> list.sortedBy { it.title }
+					NovelSortType.BY_UNREAD_COUNT -> list.sortedBy { it.unread }
+					NovelSortType.BY_ID -> list.sortedBy { it.id }
+				}
 			}
 		}
 
 	private fun Flow<HResult<List<ABookmarkedNovelUI>>>.combineUnreadStatus() =
 		combine(unreadStatusFlow) { novelResult, sortType ->
-			novelResult.transform { list ->
-				successResult(
-					sortType?.let {
-						when (sortType) {
-							INCLUDE -> list.filter { it.unread > 0 }
-							EXCLUDE -> list.filterNot { it.unread > 0 }
-						}
-					} ?: list
-
-				)
+			novelResult.transformToSuccess { list ->
+				sortType?.let {
+					when (sortType) {
+						INCLUDE -> list.filter { it.unread > 0 }
+						EXCLUDE -> list.filterNot { it.unread > 0 }
+					}
+				} ?: list
 			}
 		}
 
@@ -273,11 +264,6 @@ class LibraryViewModel(
 		reportExceptionUseCase(error)
 	}
 
-	override fun getColumnsInP(): Int = columnP
-
-	override fun getColumnsInH(): Int = columnH
-
-	override fun getNovelUIType(): NovelCardType = novelCardType
 
 	override fun isOnline(): Boolean = isOnlineUseCase()
 

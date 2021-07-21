@@ -18,17 +18,17 @@ package app.shosetsu.android.viewmodel.impl.extension
  */
 
 import androidx.lifecycle.LiveData
+import app.shosetsu.android.common.ext.launchIO
 import app.shosetsu.android.domain.ReportExceptionUseCase
-import app.shosetsu.android.domain.usecases.InitializeExtensionsUseCase
 import app.shosetsu.android.domain.usecases.InstallExtensionUIUseCase
 import app.shosetsu.android.domain.usecases.IsOnlineUseCase
+import app.shosetsu.android.domain.usecases.StartRepositoryUpdateManagerUseCase
 import app.shosetsu.android.domain.usecases.UninstallExtensionUIUseCase
 import app.shosetsu.android.domain.usecases.load.LoadExtensionsUIUseCase
-import app.shosetsu.android.domain.usecases.toast.StringToastUseCase
 import app.shosetsu.android.view.uimodels.model.ExtensionUI
-import app.shosetsu.android.viewmodel.abstracted.IExtensionsViewModel
+import app.shosetsu.android.viewmodel.abstracted.ABrowseViewModel
 import app.shosetsu.common.dto.HResult
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * shosetsu
@@ -38,47 +38,32 @@ import kotlinx.coroutines.*
  */
 class ExtensionsViewModel(
 	private val getExtensionsUIUseCase: LoadExtensionsUIUseCase,
-	private val initializeExtensionsUseCase: InitializeExtensionsUseCase,
+	private val startRepositoryUpdateManagerUseCase: StartRepositoryUpdateManagerUseCase,
 	private val installExtensionUIUseCase: InstallExtensionUIUseCase,
 	private val uninstallExtensionUIUseCase: UninstallExtensionUIUseCase,
-	private val stringToastUseCase: StringToastUseCase,
 	private var isOnlineUseCase: IsOnlineUseCase,
 	private val reportExceptionUseCase: ReportExceptionUseCase
-) : IExtensionsViewModel() {
+) : ABrowseViewModel() {
 
 	override fun reportError(error: HResult.Error, isSilent: Boolean) {
 		reportExceptionUseCase(error)
 	}
 
 	override fun refreshRepository() {
-		app.shosetsu.android.common.ext.launchIO {
-			initializeExtensionsUseCase.invoke {
-				stringToastUseCase { it }
-			}
-		}
+		startRepositoryUpdateManagerUseCase()
 	}
 
 	override fun installExtension(extensionUI: ExtensionUI) {
-		GlobalScope.launch(Dispatchers.IO, start = CoroutineStart.DEFAULT) {
-			when (val result = installExtensionUIUseCase(extensionUI)) {
-				is HResult.Success -> {
-					stringToastUseCase {
-						"Installed!"
-					}
-				}
-				is HResult.Error -> {
-					result.exception?.printStackTrace()
-					stringToastUseCase {
-						"Cannot install due to error ${result.code} by ${result.message} due to " +
-								"${result.exception?.let { it::class.simpleName }}"
-					}
-				}
-			}
+		launchIO {
+			installExtensionUIUseCase(extensionUI)
 		}
 	}
 
-	override fun uninstallExtension(extensionUI: ExtensionUI): Unit =
-		uninstallExtensionUIUseCase(extensionUI)
+	override fun uninstallExtension(extensionUI: ExtensionUI) {
+		launchIO {
+			uninstallExtensionUIUseCase(extensionUI)
+		}
+	}
 
 	@ExperimentalCoroutinesApi
 	override val liveData: LiveData<HResult<List<ExtensionUI>>> by lazy {

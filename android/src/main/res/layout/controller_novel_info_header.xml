@@ -40,10 +40,11 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:contentDescription="@string/todo"
+        android:layout_above="@id/utilityBar"
         android:src="@drawable/broken_image"
         app:layout_constraintDimensionRatio="2:3" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -54,7 +55,7 @@
         android:background="@android:color/transparent"
         tools:text="Isekai something" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_site"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -67,7 +68,7 @@
         android:textSize="12sp"
         tools:text="boxnovel" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_author"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -80,7 +81,7 @@
         android:textSize="12sp"
         tools:text="A, B, C" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_artists"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -93,7 +94,7 @@
         android:textSize="12sp"
         tools:text="C, D, E" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_publish"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -106,7 +107,7 @@
         android:textSize="12sp"
         tools:text="Unknown" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/title_tag"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -119,7 +120,7 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/site_tag"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -132,7 +133,7 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/author_tag"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -145,7 +146,7 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/artists_tag"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -158,7 +159,7 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/publishing_tag"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -214,7 +215,7 @@
         android:theme="@style/ChipStyle"
         android:visibility="visible" />
 
-    <TextView
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/novel_description"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -224,9 +225,17 @@
         android:background="@android:color/transparent"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
+        android:layout_marginBottom="8dp"
         android:textIsSelectable="true"
         tools:text="A\nB\nC\nD\nE\nF" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@id/novel_description"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:background="?android:attr/listDivider" />
 
     <RelativeLayout
         android:id="@+id/chapter_control"
@@ -237,15 +246,26 @@
         android:paddingEnd="16dp"
         tools:context="app.shosetsu.android.activity.MainActivity">
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/chapters_tag"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
             android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
-            android:layout_toStartOf="@id/filter_chip"
+            android:layout_toStartOf="@id/chip_jump_to"
             android:text="@string/chapters" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_jump_to"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginEnd="8dp"
+            android:layout_toStartOf="@id/filter_chip"
+            android:text="@string/jump_to_chapter_short" />
 
         <com.google.android.material.chip.Chip
             android:id="@+id/filter_chip"
@@ -259,7 +279,6 @@
     </RelativeLayout>
 
     <View
-        android:id="@+id/divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_below="@id/chapter_control"

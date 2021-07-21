@@ -1,18 +1,17 @@
 package app.shosetsu.android.view.controller
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.CallSuper
 import androidx.core.view.isVisible
+import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import app.shosetsu.android.common.ext.context
-import app.shosetsu.android.common.ext.logID
 import app.shosetsu.common.dto.HResult
 import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerRecyclerBinding
 import com.github.doomsdayrs.apps.shosetsu.databinding.ControllerRecyclerBinding.inflate
@@ -75,29 +74,38 @@ abstract class RecyclerController<AD, IT, VB> : ViewedController<VB>
 	): View {
 		setViewTitle()
 		binding = bindView(inflater)
-		onViewCreated(binding.root)
 		setupRecyclerView()
 		return binding.root
 	}
 
 	/** @param result [HResult], if [HResult.Success] then updates UI */
-	open fun handleRecyclerUpdate(result: HResult<List<IT>>) {
-		when (result) {
-			is HResult.Loading -> showLoading()
-			is HResult.Success -> updateUI(result.data)
-			is HResult.Error -> handleErrorResult(result)
-			is HResult.Empty -> showEmpty()
+	open fun handleRecyclerUpdate(result: HResult<List<IT>>) = when (result) {
+		HResult.Loading -> showLoading()
+		is HResult.Success -> updateUI(result.data)
+		is HResult.Error -> handleErrorResult(result)
+		HResult.Empty -> showEmpty()
+		else -> {
 		}
 	}
+
+	/**
+	 * Convenience method to observe a [LiveData] containing data
+	 * that matches what [handleRecyclerUpdate] needs
+	 */
+	fun LiveData<HResult<List<IT>>>.observeRecyclerUpdates() =
+		observe(this@RecyclerController) {
+			handleRecyclerUpdate(it)
+		}
 
 	abstract override fun onViewCreated(view: View)
 
 	/**
 	 * Allows manipulation of the recyclerview
+	 *
+	 * Invoked after [onCreateView]
 	 */
 	@CallSuper
 	open fun setupRecyclerView() {
-		Log.d(logID(), "Setup of recyclerView")
 		recyclerView.layoutManager = createLayoutManager()
 		adapter = createRecyclerAdapter()
 		recyclerView.adapter = adapter
@@ -113,7 +121,14 @@ abstract class RecyclerController<AD, IT, VB> : ViewedController<VB>
 		recyclerView.adapter = adapter
 	}
 
+	/**
+	 * Called when the [HResult] for the data is empty
+	 */
 	open fun showEmpty() {}
+
+	/**
+	 * Undo [showEmpty]
+	 */
 	open fun hideEmpty() {}
 
 	/**
@@ -129,10 +144,7 @@ abstract class RecyclerController<AD, IT, VB> : ViewedController<VB>
 	/**
 	 * The data for this view is loading
 	 */
-	@CallSuper
-	open fun showLoading() {
-		Log.i(logID(), "Loading UWU")
-	}
+	open fun showLoading() {}
 
 	/**
 	 * Updates the UI with a new list

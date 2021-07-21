@@ -30,11 +30,14 @@ import com.github.doomsdayrs.apps.shosetsu.databinding.RecyclerRepositoryInfoBin
 /**
  * shosetsu
  * 24 / 04 / 2020
+ *
+ * @see RepositoryEntity
  */
 data class RepositoryUI(
 	val id: Int,
 	val url: String,
-	val name: String
+	val name: String,
+	val isRepoEnabled: Boolean
 ) : BaseRecyclerItem<ViewHolder>(), Convertible<RepositoryEntity> {
 	override val layoutRes: Int = R.layout.recycler_repository_info
 	override val type: Int = R.layout.recycler_repository_info
@@ -55,14 +58,16 @@ data class RepositoryUI(
 			repoID.text = item.id.toString()
 			title.text = item.name
 			url.text = item.url
+			switchWidget.isChecked = item.isRepoEnabled
 		}
 
 		override fun RecyclerRepositoryInfoBinding.unbindView(item: RepositoryUI) {
 			repoID.setText(R.string.negative_one)
 			title.text = ""
 			url.text = ""
+			switchWidget.isChecked = false
 		}
 	}
 
-	override fun convertTo(): RepositoryEntity = RepositoryEntity(id, url, name)
+	override fun convertTo(): RepositoryEntity = RepositoryEntity(id, url, name, isRepoEnabled)
 }

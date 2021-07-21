@@ -10,10 +10,11 @@ import android.content.Intent
 import android.content.Intent.*
 import android.content.IntentFilter
 import android.os.Bundle
-import android.util.Log
+import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
+import androidx.annotation.StringRes
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.getSystemService
 import androidx.core.os.bundleOf
 import androidx.core.view.GravityCompat
+import androidx.core.view.isVisible
+import androidx.core.view.marginTop
 import androidx.drawerlayout.widget.DrawerLayout
 import app.shosetsu.android.common.consts.*
 import app.shosetsu.android.common.consts.BundleKeys.BUNDLE_QUERY
@@ -34,7 +37,7 @@ import app.shosetsu.android.ui.search.SearchController
 import app.shosetsu.android.ui.updates.UpdatesController
 import app.shosetsu.android.view.controller.*
 import app.shosetsu.android.view.controller.base.*
-import app.shosetsu.android.viewmodel.abstracted.IMainViewModel
+import app.shosetsu.android.viewmodel.abstracted.AMainViewModel
 import app.shosetsu.common.dto.handle
 import app.shosetsu.common.enums.AppThemes.*
 import com.bluelinelabs.conductor.Conductor.attachRouter
@@ -43,9 +46,14 @@ import com.bluelinelabs.conductor.ControllerChangeHandler
 import com.bluelinelabs.conductor.Router
 import com.github.doomsdayrs.apps.shosetsu.R
 import com.github.doomsdayrs.apps.shosetsu.databinding.ActivityMainBinding
-import org.kodein.di.Kodein
-import org.kodein.di.KodeinAware
-import org.kodein.di.android.closestKodein
+import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.snackbar.BaseTransientBottomBar.Duration
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.delay
+import org.kodein.di.DI
+import org.kodein.di.DIAware
+import org.kodein.di.android.closestDI
+import java.util.*
 
 
 /*
@@ -71,7 +79,8 @@ import org.kodein.di.android.closestKodein
  *
  * @author github.com/doomsdayrs
  */
-class MainActivity : AppCompatActivity(), KodeinAware {
+class MainActivity : AppCompatActivity(), DIAware,
+	ControllerChangeHandler.ControllerChangeListener {
 	private lateinit var binding: ActivityMainBinding
 
 	private var registered = false
@@ -82,15 +91,15 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 	private lateinit var actionBarDrawerToggle: ActionBarDrawerToggle
 
 	private val downloadManager by lazy { getSystemService<DownloadManager>()!! }
-	override val kodein: Kodein by closestKodein()
-	private val viewModel: IMainViewModel by viewModel()
+	override val di: DI by closestDI()
+	private val viewModel: AMainViewModel by viewModel()
 
 	private val broadcastReceiver by lazy {
 		object : BroadcastReceiver() {
 			override fun onReceive(context: Context?, intent: Intent?) {
 				intent?.let {
 					handleIntentAction(it)
-				} ?: Log.e(logID(), "Null intent recieved")
+				} ?: logE("Null intent recieved")
 			}
 		}
 	}
@@ -107,9 +116,10 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 	 * @param savedInstanceState savedData from destruction
 	 */
 	override fun onCreate(savedInstanceState: Bundle?) {
-		viewModel.navigationStyle()
-		viewModel.appTheme().observe(this) {
-			when (it!!) {
+		viewModel.navigationStyle
+		viewModel.appThemeLiveData.observe(this) {
+			logI("Setting theme to $it")
+			when (it) {
 				FOLLOW_SYSTEM -> {
 					delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
 				}
@@ -123,13 +133,14 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 					// TODO Implement amoled mode
 					delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_YES
 				}
+				else -> logE("Null theme received")
 			}
 		}
 		this.requestPerms()
 		super.onCreate(savedInstanceState)
 		// Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079
 		if (!isTaskRoot) {
-			Log.i(logID(), "Broadcasting intent ${intent.action}")
+			logI("Broadcasting intent ${intent.action}")
 			sendBroadcast(Intent(intent.action))
 			finish()
 			return
@@ -151,19 +162,43 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 		setupProcesses()
 	}
 
+	private var inProtectingBack = false
+
+	private fun protectedBackWait() {
+		launchIO {
+			inProtectingBack = true
+			val snackBar =
+				makeSnackBar(R.string.double_back_message, Snackbar.LENGTH_INDEFINITE).apply {
+					setOnDismissed { snackbar, event ->
+						inProtectingBack = false
+					}
+				}
+			snackBar.show()
+			delay(2000)
+			snackBar.dismiss()
+		}
+	}
+
+	private fun shouldProtectBack(): Boolean =
+		router.backstackSize == 1 &&
+				router.getControllerWithTag("${R.id.nav_library}") != null &&
+				viewModel.requireDoubleBackToExit &&
+				!inProtectingBack
+
 	/**
 	 * When the back button while drawer is open, close it.
 	 */
 	override fun onBackPressed() {
-		logD("Back Pressed")
 		val backStackSize = router.backstackSize
-
+		logD("Back stack size: $backStackSize")
 		when {
 			binding.drawerLayout.isDrawerOpen(GravityCompat.START) ->
 				binding.drawerLayout.closeDrawer(GravityCompat.START)
 
 			backStackSize == 1 && router.getControllerWithTag("${R.id.nav_library}") == null ->
 				setSelectedDrawerItem(R.id.nav_library)
+
+			shouldProtectBack() -> protectedBackWait()
 
 			backStackSize == 1 || !router.handleBack() -> super.onBackPressed()
 		}
@@ -172,7 +207,7 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 	// From tachiyomi
 	private fun setSelectedDrawerItem(id: Int) {
 		if (!isFinishing) {
-			if (viewModel.navigationStyle() == 0) {
+			if (viewModel.navigationStyle == 0) {
 				binding.bottomNavigationView.selectedItemId = id
 				binding.bottomNavigationView.menu.performIdentifierAction(id, 0)
 			} else {
@@ -187,16 +222,14 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 		setSupportActionBar(binding.toolbar)
 
 		binding.toolbar.setNavigationOnClickListener {
-			logD("Toolbar clicked")
 			if (router.backstackSize == 1) {
-				if (viewModel.navigationStyle() == 1) {
-					logD("Opening drawer")
+				if (viewModel.navigationStyle == 1) {
 					binding.drawerLayout.openDrawer(GravityCompat.START)
 				}
 			} else onBackPressed()
 		}
 
-		if (viewModel.navigationStyle() == 0) {
+		if (viewModel.navigationStyle == 0) {
 			binding.bottomNavigationView.visibility = VISIBLE
 			binding.navView.visibility = GONE
 			setupBottomNavigationDrawer()
@@ -266,27 +299,16 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 
 	private fun setupRouter(savedInstanceState: Bundle?) {
 		router = attachRouter(this, binding.controllerContainer, savedInstanceState)
-		router.addChangeListener(object : ControllerChangeHandler.ControllerChangeListener {
-			override fun onChangeStarted(
-				to: Controller?,
-				from: Controller?,
-				isPush: Boolean,
-				container: ViewGroup,
-				handler: ControllerChangeHandler,
-			) {
-				syncActivityViewWithController(to, from)
-			}
-
-			override fun onChangeCompleted(
-				to: Controller?,
-				from: Controller?,
-				isPush: Boolean,
-				container: ViewGroup,
-				handler: ControllerChangeHandler,
-			) {
-			}
-		})
+		router.addChangeListener(this)
 		syncActivityViewWithController(router.backstack.lastOrNull()?.controller)
+	}
+
+	private fun actionMain() {
+		if (!router.hasRootController()) {
+			setSelectedDrawerItem(R.id.nav_library)
+		} else {
+			logE("Router has a root controller")
+		}
 	}
 
 	internal fun handleIntentAction(intent: Intent) {
@@ -298,7 +320,7 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 			ACTION_SEARCH -> {
 				if (!router.hasRootController()) setSelectedDrawerItem(R.id.nav_library)
 
-				transitionView(
+				router.shosetsuPush(
 					SearchController(
 						bundleOf(
 							BUNDLE_QUERY to (intent.getStringExtra(SearchManager.QUERY) ?: "")
@@ -309,7 +331,7 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 			ACTION_OPEN_SEARCH -> {
 				if (!router.hasRootController()) setSelectedDrawerItem(R.id.nav_library)
 
-				transitionView(
+				router.shosetsuPush(
 					SearchController(
 						bundleOf(
 							BUNDLE_QUERY to (intent.getStringExtra(SearchManager.QUERY) ?: "")
@@ -317,13 +339,11 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 					)
 				)
 			}
-			ACTION_MAIN -> {
-				if (!router.hasRootController()) {
-					setSelectedDrawerItem(R.id.nav_library)
-				} else {
-					logE("Router has a root controller")
-				}
+			ACTION_OPEN_APP_UPDATE -> {
+				viewModel.handleAppUpdate()
+				actionMain()
 			}
+			ACTION_MAIN -> actionMain()
 			else -> if (!router.hasRootController()) {
 				setSelectedDrawerItem(R.id.nav_library)
 			} else {
@@ -368,8 +388,28 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 		}
 	}
 
+	@Deprecated(
+		"",
+		ReplaceWith("router.shosetsuPush(target)", "app.shosetsu.android.common.ext.shosetsuPush")
+	)
 	private fun transitionView(target: Controller) {
 		router.pushController(target.withFadeTransaction())
+	}
+
+	private val holdingAtBottom = hashMapOf<View, AppBarLayout.OnOffsetChangedListener>()
+
+	fun holdAtBottom(view: View) {
+		AppBarLayout.OnOffsetChangedListener { appBarLayout, verticalOffset ->
+			val maxAbsOffset = appBarLayout.measuredHeight - binding.tabLayout.measuredHeight
+			view.translationY = -maxAbsOffset - verticalOffset.toFloat() + appBarLayout.marginTop
+		}.let {
+			binding.elevatedAppBarLayout.addOnOffsetChangedListener(it)
+			holdingAtBottom[view] = it
+		}
+	}
+
+	fun removeHoldAtBottom(view: View) {
+		binding.elevatedAppBarLayout.removeOnOffsetChangedListener(holdingAtBottom.remove(view))
 	}
 
 	@SuppressLint("ObjectAnimatorBinding")
@@ -380,7 +420,7 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 
 		if (showHamburger) {
 			// Shows navigation
-			if (viewModel.navigationStyle() == 1) {
+			if (viewModel.navigationStyle == 1) {
 				logI("Sync activity view with controller for legacy")
 				supportActionBar?.setDisplayHomeAsUpEnabled(true)
 				actionBarDrawerToggle.isDrawerIndicatorEnabled = true
@@ -395,7 +435,7 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 		} else {
 
 			// Hides navigation
-			if (viewModel.navigationStyle() == 1) {
+			if (viewModel.navigationStyle == 1) {
 				logI("Sync activity view with controller for legacy")
 				supportActionBar?.setDisplayHomeAsUpEnabled(false)
 				actionBarDrawerToggle.isDrawerIndicatorEnabled = false
@@ -431,59 +471,25 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 			to.showFAB(eFab)
 		}
 
-		if (to is PushCapableController)
-			to.pushController = { transitionView(it) }
-
 		val tabLayout = binding.tabLayout
 
 		if (from is TabbedController) {
-			logV("from is a toolbarController")
 			tabLayout.removeAllTabs()
 			tabLayout.clearOnTabSelectedListeners()
 		}
 
 		if (to is TabbedController) {
-			logV("to is a toolbarController")
 			to.acceptTabLayout(tabLayout)
 			to.configureTabs(tabLayout)
 		}
 
+		// clean up TabbedController
 		if (from is TabbedController && to !is TabbedController) tabLayout.collapse()
+
+		// setup TabbedController
 		if (from !is TabbedController && to is TabbedController) tabLayout.expand()
 
-		if (from is BottomMenuController) {
-			binding.slidingUpBottomMenu.apply {
-				clearOnHideListeners()
-				clearOnShowListeners()
-				clearChildren()
-			}
-		}
-
-		if (to is BottomMenuController) {
-			var created = false
-			to.bottomMenuRetriever = { binding.slidingUpBottomMenu }
-
-			binding.slidingUpBottomMenu.apply {
-				addOnShowListener {
-					if (!created) {
-						addChildView(to.getBottomMenuView())
-						created = true
-					}
-				}
-
-				if (to is FABController) {
-					addOnShowListener { to.hideFAB(fab) }
-					addOnHideListener { to.showFAB(fab) }
-				}
-
-
-				if (to is ExtendedFABController) {
-					addOnShowListener { to.hideFAB(eFab) }
-					addOnHideListener { to.showFAB(eFab) }
-				}
-			}
-		}
-
+		// Change the elevation for the app bar layout
 		when (to) {
 			is CollapsedToolBarController -> {
 				binding.elevatedAppBarLayout.drop()
@@ -496,4 +502,44 @@ class MainActivity : AppCompatActivity(), KodeinAware {
 			}
 		}
 	}
+
+	@SuppressLint("ShowToast")
+	fun makeSnackBar(
+		@StringRes stringRes: Int,
+		@Duration length: Int = Snackbar.LENGTH_SHORT
+	): Snackbar =
+		makeSnackBar(getString(stringRes), length)
+
+	@SuppressLint("ShowToast")
+	fun makeSnackBar(
+		string: String,
+		@Duration length: Int = Snackbar.LENGTH_SHORT
+	): Snackbar =
+		Snackbar.make(binding.coordinator, string, length).apply {
+			when {
+				binding.fab.isVisible -> anchorView = binding.fab
+				binding.efab.isVisible -> anchorView = binding.efab
+				binding.bottomNavigationView.isVisible -> anchorView = binding.bottomNavigationView
+			}
+		}
+
+	override fun onChangeStarted(
+		to: Controller?,
+		from: Controller?,
+		isPush: Boolean,
+		container: ViewGroup,
+		handler: ControllerChangeHandler,
+	) {
+		syncActivityViewWithController(to, from)
+	}
+
+	override fun onChangeCompleted(
+		to: Controller?,
+		from: Controller?,
+		isPush: Boolean,
+		container: ViewGroup,
+		handler: ControllerChangeHandler,
+	) {
+	}
+
 }
